@@ -1,0 +1,65 @@
+# GitHub Actions: Hourly YouTube Channel Tracker Worker
+# =====================================================
+# Runs worker.py every hour on a cron schedule.
+# Can also be triggered manually via workflow_dispatch.
+
+name: Hourly Worker — Summarize New Uploads
+
+on:
+  schedule:
+    # Run every hour at minute 5 (e.g., 1:05, 2:05, ...)
+    # Offset from :00 avoids GitHub Actions peak load
+    - cron: '5 * * * *'
+
+  workflow_dispatch:
+    # Manual trigger from GitHub UI for testing
+    inputs:
+      lookback_minutes:
+        description: 'RSS lookback window in minutes (default: 70)'
+        required: false
+        default: '70'
+
+jobs:
+  run-worker:
+    name: Process New Videos
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      # Appwrite Configuration
+      APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
+      APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
+      APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+      APPWRITE_DATABASE_ID: ${{ secrets.APPWRITE_DATABASE_ID }}
+      APPWRITE_CHANNELS_COLLECTION_ID: channels
+      APPWRITE_SUBSCRIPTIONS_COLLECTION_ID: subscriptions
+      APPWRITE_VIDEOS_COLLECTION_ID: videos
+
+      # Gemini API
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_MODEL: gemini-2.0-flash
+      GEMINI_MAX_OUTPUT_TOKENS: '2048'
+
+      # Worker Tuning
+      RSS_LOOKBACK_MINUTES: ${{ github.event.inputs.lookback_minutes || '70' }}
+      TRANSCRIPT_CHUNK_SIZE: '4000'
+      MAX_RETRIES: '3'
+      RETRY_DELAY_SECONDS: '5'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: worker/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r worker/requirements.txt
+
+      - name: Run worker
+        working-directory: worker
+        run: python worker.py
