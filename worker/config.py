@@ -53,7 +53,7 @@ def _require_env(key: str) -> str:
 
 def get_appwrite_config() -> AppwriteConfig:
     return AppwriteConfig(
-        endpoint=os.getenv("APPWRITE_ENDPOINT", "https://cloud.appwrite.io/v1"),
+        endpoint=os.getenv("APPWRITE_ENDPOINT", "https://fra.cloud.appwrite.io/v1"),
         project_id=_require_env("APPWRITE_PROJECT_ID"),
         api_key=_require_env("APPWRITE_API_KEY"),
         database_id=os.getenv("APPWRITE_DATABASE_ID", "yt_tracker_db"),

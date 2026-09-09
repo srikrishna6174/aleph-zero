@@ -91,7 +91,7 @@ export function useSummaries(subscribedChannelIds = []) {
     const ids = stableChannelIds.current;
     if (!user || ids.length === 0) return;
 
-    const channel = `databases.${DATABASE_ID}.collections.${VIDEOS_TABLE_ID}.documents`;
+    const channel = `databases.${DATABASE_ID}.tables.${VIDEOS_TABLE_ID}.rows`;
 
     const unsubscribe = client.subscribe(channel, (response) => {
       const payload = response.payload;
@@ -139,12 +139,12 @@ export function useSummaries(subscribedChannelIds = []) {
         documentId,
         {
           status: "pending",
-          error_message: null
+          error_message: ""
         }
       );
       // Optimistic update
       setSummaries(prev => prev.map(s => 
-        s.$id === documentId ? { ...s, status: "pending", error_message: null } : s
+        s.$id === documentId ? { ...s, status: "pending", error_message: "" } : s
       ));
       return true;
     } catch (err) {

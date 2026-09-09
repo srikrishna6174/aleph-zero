@@ -187,15 +187,13 @@ export function useChannels() {
         await fetchChannels();
         return channelRow;
       } catch (err) {
-        if (!error) {
-          setError(err?.message || "Failed to add channel");
-        }
+        setError(err?.message || "Failed to add channel");
         throw err;
       } finally {
         setLoading(false);
       }
     },
-    [user, fetchChannels, error]
+    [user, fetchChannels]
   );
 
   const removeChannel = useCallback(
@@ -217,10 +215,11 @@ export function useChannels() {
         );
 
         if (subs.rows.length > 0) {
+          const rowId = subs.rows[0].$id ?? subs.rows[0].id;
           await tablesDB.deleteRow(
             DATABASE_ID,
             SUBSCRIPTIONS_TABLE_ID,
-            subs.rows[0].$id
+            rowId
           );
         }
 

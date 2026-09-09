@@ -209,3 +209,20 @@ class AppwriteClient:
             data={"status": "processing"},
         )
         return {"$id": document_id}
+
+    def update_video_status(
+        self, document_id: str, status: str, error_message: str = ""
+    ) -> dict:
+        """Update a video row's status (and optionally error message)."""
+        data: dict = {"status": status}
+        if error_message:
+            truncated = error_message[:1020] if len(error_message) > 1020 else error_message
+            data["error_message"] = truncated
+        self._db.update_row(
+            database_id=self._config.database_id,
+            table_id=self._config.videos_collection_id,
+            row_id=document_id,
+            data=data,
+        )
+        logger.info(f"Updated video {document_id} status to '{status}'")
+        return {"$id": document_id}
