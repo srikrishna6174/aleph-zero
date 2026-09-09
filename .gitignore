@@ -1,1 +1,22 @@
+# Environment secrets — never commit actual env files
 .env
+**/.env
+**/.env.*
+!**/.env.example
+
+# Python
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+
+# Node / Frontend (handled by frontend/.gitignore too)
+node_modules/

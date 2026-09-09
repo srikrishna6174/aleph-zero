@@ -202,7 +202,7 @@ export default function SummaryCard({ video, channelName, index = 0, onRetry }) 
               <button 
                 onClick={async () => {
                   const { toast } = await import('react-hot-toast');
-                  toast.promise(onRetry(video.$id), {
+                  toast.promise(onRetry(video.$id ?? video.id), {
                     loading: 'Re-queueing summary...',
                     success: 'Successfully re-queued for processing!',
                     error: 'Failed to re-queue. Please try again.'

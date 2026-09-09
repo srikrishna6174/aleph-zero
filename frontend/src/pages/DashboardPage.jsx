@@ -20,7 +20,7 @@ export default function DashboardPage() {
   const { channels } = useChannels();
 
   const subscribedChannelIds = useMemo(
-    () => channels.map((ch) => ch.channel_id),
+    () => channels.map((ch) => ch.channel_id ?? ch.data?.channel_id).filter(Boolean),
     [channels]
   );
 

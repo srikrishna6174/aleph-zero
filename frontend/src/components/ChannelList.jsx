@@ -95,7 +95,7 @@ export default function ChannelList({ channels, onRemoveChannel, loading }) {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 max-h-[600px] overflow-y-auto sidebar-scroll pr-2">
           {filteredChannels.map((channel, index) => (
             <div
-              key={channel.$id}
+              key={channel.$id ?? channel.id ?? channel.channel_id}
               className="group flex items-center justify-between p-3 rounded-xl bg-surface-900/50 border border-surface-800 hover:border-surface-600 hover:bg-surface-800/80 transition-all duration-200 animate-fade-in-up"
               style={{ animationDelay: `${(index % 15) * 0.03}s` }}
             >

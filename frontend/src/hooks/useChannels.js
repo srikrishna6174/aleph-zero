@@ -64,7 +64,9 @@ export function useChannels() {
         [Query.equal("user_id", user.$id), Query.limit(100)]
       );
 
-      const channelIds = subsResponse.rows.map((s) => s.channel_id);
+      const channelIds = subsResponse.rows
+        .map((s) => s.channel_id ?? s.data?.channel_id)
+        .filter(Boolean);
 
       if (channelIds.length === 0) {
         setChannels([]);

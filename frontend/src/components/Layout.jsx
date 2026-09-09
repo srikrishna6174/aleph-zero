@@ -132,7 +132,7 @@ export default function Layout({ children }) {
           </div>
 
           <div className="flex items-center gap-3 text-xs text-surface-500">
-            <span>v2.0 (Gemini 3.6 Flash)</span>
+            <span>v2.0 (Gemini 2.0 Flash)</span>
           </div>
         </header>
 

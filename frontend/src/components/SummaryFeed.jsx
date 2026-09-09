@@ -20,7 +20,10 @@ export default function SummaryFeed({
   // Build a quick channel_id → name lookup map
   const channelMap = {};
   for (const ch of channels) {
-    channelMap[ch.channel_id] = ch.name;
+    // TablesDB rows expose fields directly on the row object
+    const id = ch.channel_id ?? ch.data?.channel_id;
+    const name = ch.name ?? ch.data?.name;
+    if (id) channelMap[id] = name || id;
   }
 
   const displaySummaries = limit ? summaries.slice(0, limit) : summaries;
@@ -103,7 +106,7 @@ export default function SummaryFeed({
         <div className="space-y-4">
           {displaySummaries.map((video, index) => (
             <SummaryCard
-              key={video.$id}
+              key={video.$id ?? video.id}
               video={video}
               channelName={channelMap[video.channel_id] || ""}
               index={index}

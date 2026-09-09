@@ -21,7 +21,7 @@ export default function LibraryPage() {
   const [statusFilter, setStatusFilter] = useState("all");
 
   const subscribedChannelIds = useMemo(
-    () => channels.map((ch) => ch.channel_id),
+    () => channels.map((ch) => ch.channel_id ?? ch.data?.channel_id).filter(Boolean),
     [channels]
   );
 
@@ -51,8 +51,12 @@ export default function LibraryPage() {
         const query = searchQuery.toLowerCase();
         const titleMatch = video.title?.toLowerCase().includes(query);
         
-        // Find channel name
-        const channelName = channels.find(c => c.channel_id === video.channel_id)?.name?.toLowerCase() || "";
+        // Find channel name safely (works with direct fields or nested data)
+        const match = channels.find((c) => {
+          const cid = c.channel_id ?? c.data?.channel_id;
+          return cid === video.channel_id;
+        });
+        const channelName = (match?.name ?? match?.data?.name ?? "").toLowerCase();
         const channelMatch = channelName.includes(query);
         
         return titleMatch || channelMatch;
@@ -60,6 +64,7 @@ export default function LibraryPage() {
       
       return true;
     });
+
   }, [summaries, searchQuery, statusFilter, channels]);
 
   const stats = useMemo(() => ({
