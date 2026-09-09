@@ -83,9 +83,17 @@ def fetch_recent_videos(
     logger.info(f"Fetching RSS feed for channel {channel_id}: {rss_url}")
 
     try:
-        feed = feedparser.parse(rss_url)
+        # Use requests to fetch the XML with a standard User-Agent
+        # feedparser's default User-Agent is often blocked by YouTube
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+        response = requests.get(rss_url, headers=headers, timeout=10)
+        response.raise_for_status()
+        
+        feed = feedparser.parse(response.content)
     except Exception as e:
-        logger.error(f"Failed to parse RSS feed for {channel_id}: {e}")
+        logger.error(f"Failed to fetch or parse RSS feed for {channel_id}: {e}")
         return []
 
     if feed.bozo and not feed.entries:

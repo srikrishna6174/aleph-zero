@@ -27,17 +27,17 @@ jobs:
 
     env:
       # Appwrite Configuration
-      APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
-      APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
+      APPWRITE_ENDPOINT: 'https://fra.cloud.appwrite.io/v1'
+      APPWRITE_PROJECT_ID: '6a9d0a3c0016b6eb0753'
+      APPWRITE_DATABASE_ID: '6a9d0bb90033cb018bb0'
       APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
-      APPWRITE_DATABASE_ID: ${{ secrets.APPWRITE_DATABASE_ID }}
       APPWRITE_CHANNELS_COLLECTION_ID: channels
       APPWRITE_SUBSCRIPTIONS_COLLECTION_ID: subscriptions
       APPWRITE_VIDEOS_COLLECTION_ID: videos
 
       # Gemini API
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      GEMINI_MODEL: gemini-2.0-flash
+      GEMINI_MODEL: gemini-3.6-flash
       GEMINI_MAX_OUTPUT_TOKENS: '2048'
 
       # Worker Tuning

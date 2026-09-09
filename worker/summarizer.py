@@ -81,8 +81,8 @@ class Summarizer:
         self,
         chunks: list[str],
         video_title: str = "",
-        max_retries: int = 3,
-        retry_delay: int = 5,
+        max_retries: int = 5,
+        retry_delay: int = 10,
     ) -> str:
         """
         Summarize a video transcript (provided as chunks).
@@ -131,7 +131,14 @@ class Summarizer:
                     f"--- Section {i}/{len(chunks)} ---\n{section_summary}"
                 )
                 logger.info(f"Summarized chunk {i}/{len(chunks)}")
+                
+                # Proactive delay to avoid Gemini 15 RPM rate limit
+                if i < len(chunks):
+                    time.sleep(5)
 
+            # Proactive delay before final merge
+            time.sleep(5)
+            
             # Merge all section summaries
             merge_prompt = FINAL_MERGE_PROMPT.format(
                 section_summaries="\n\n".join(section_summaries)

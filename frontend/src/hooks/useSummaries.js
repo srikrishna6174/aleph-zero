@@ -131,6 +131,28 @@ export function useSummaries(subscribedChannelIds = []) {
     fetchSummaries(true);
   }, [fetchSummaries]);
 
+  const retrySummary = useCallback(async (documentId) => {
+    try {
+      await tablesDB.updateRow(
+        DATABASE_ID,
+        VIDEOS_TABLE_ID,
+        documentId,
+        {
+          status: "pending",
+          error_message: null
+        }
+      );
+      // Optimistic update
+      setSummaries(prev => prev.map(s => 
+        s.$id === documentId ? { ...s, status: "pending", error_message: null } : s
+      ));
+      return true;
+    } catch (err) {
+      console.error("Failed to retry summary:", err);
+      return false;
+    }
+  }, []);
+
   return {
     summaries,
     loading,
@@ -138,5 +160,6 @@ export function useSummaries(subscribedChannelIds = []) {
     error,
     loadMore,
     refresh,
+    retrySummary,
   };
 }

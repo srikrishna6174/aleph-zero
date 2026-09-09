@@ -14,12 +14,16 @@ export default function SummaryFeed({
   hasMore,
   onLoadMore,
   onRefresh,
+  limit,
+  onRetry,
 }) {
   // Build a quick channel_id → name lookup map
   const channelMap = {};
   for (const ch of channels) {
     channelMap[ch.channel_id] = ch.name;
   }
+
+  const displaySummaries = limit ? summaries.slice(0, limit) : summaries;
 
   return (
     <div className="space-y-4">
@@ -95,21 +99,22 @@ export default function SummaryFeed({
       )}
 
       {/* Summary cards */}
-      {summaries.length > 0 && (
+      {displaySummaries.length > 0 && (
         <div className="space-y-4">
-          {summaries.map((video, index) => (
+          {displaySummaries.map((video, index) => (
             <SummaryCard
               key={video.$id}
               video={video}
               channelName={channelMap[video.channel_id] || ""}
               index={index}
+              onRetry={onRetry}
             />
           ))}
         </div>
       )}
 
       {/* Load more */}
-      {hasMore && summaries.length > 0 && (
+      {hasMore && displaySummaries.length > 0 && (
         <div className="flex justify-center pt-4">
           <button
             id="load-more-btn"

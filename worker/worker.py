@@ -140,28 +140,36 @@ def run_worker():
         logger.info(f"Processing: {video.title} ({video.video_id})")
         logger.info(f"{'─' * 50}")
 
-        # 4a. Create a pending document in Appwrite
+        # 4a. Check if this video has a failed document (retry case)
+        existing_failed_id = aw_client.get_failed_video_doc_id(video.video_id)
+
         doc = None
-        try:
-            doc = aw_client.create_video_document(
-                video_id=video.video_id,
-                channel_id=video.channel_id,
-                title=video.title,
-                published_at=video.published_at,
-                thumbnail_url=video.thumbnail_url,
-                status="pending",
-            )
-        except Exception as e:
-            logger.error(f"Failed to create document for {video.video_id}: {e}")
-            fail_count += 1
-            continue
+        if existing_failed_id:
+            # Retry: reuse the existing failed document
+            document_id = existing_failed_id
+            logger.info(f"Retrying previously failed video {video.video_id} (doc: {document_id})")
+        else:
+            # New video: create a pending document in Appwrite
+            try:
+                doc = aw_client.create_video_document(
+                    video_id=video.video_id,
+                    channel_id=video.channel_id,
+                    title=video.title,
+                    published_at=video.published_at,
+                    thumbnail_url=video.thumbnail_url,
+                    status="pending",
+                )
+            except Exception as e:
+                logger.error(f"Failed to create document for {video.video_id}: {e}")
+                fail_count += 1
+                continue
 
-        if doc is None:
-            # Document already exists (409), skip
-            logger.info(f"Video {video.video_id} already exists, skipping")
-            continue
+            if doc is None:
+                # Document already exists (409), skip
+                logger.info(f"Video {video.video_id} already exists, skipping")
+                continue
 
-        document_id = doc["$id"]
+            document_id = doc["$id"]
 
         # Mark as processing
         try:
@@ -223,9 +231,16 @@ def run_worker():
                 f"translated={transcript_result.was_translated})"
             )
         except Exception as e:
-            logger.error(f"Failed to save summary for {video.video_id}: {e}")
+            logger.error(f"Unexpected error processing video {video.video_id}: {e}", exc_info=True)
+            aw_client.update_video_status(
+                document_id, "failed", error_message=f"Unexpected error: {str(e)}"
+            )
             fail_count += 1
-            continue
+
+        # Add a delay between videos to prevent hitting the 15 RPM Gemini free tier limit
+        if success_count + fail_count < len(new_videos):
+            logger.info("Waiting 10 seconds before processing next video to respect rate limits...")
+            time.sleep(10)
 
     # ─── Summary ─────────────────────────────────────────────────────────
 

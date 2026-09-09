@@ -44,7 +44,7 @@ function getStatusBadge(status) {
   }
 }
 
-export default function SummaryCard({ video, channelName, index = 0 }) {
+export default function SummaryCard({ video, channelName, index = 0, onRetry }) {
   const [expanded, setExpanded] = useState(false);
   const badge = getStatusBadge(video.status);
 
@@ -188,8 +188,8 @@ export default function SummaryCard({ video, channelName, index = 0 }) {
       {/* Failed state */}
       {video.status === "failed" && (
         <div className="px-5 pb-5">
-          <div className="border-t border-surface-700/50 pt-4">
-            <div className="flex items-center gap-2 text-sm text-error/80">
+          <div className="border-t border-surface-700/50 pt-4 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm text-error/80 flex-1 min-w-0 pr-4">
               <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
@@ -197,6 +197,25 @@ export default function SummaryCard({ video, channelName, index = 0 }) {
                 {video.error_message || "Failed to generate summary"}
               </span>
             </div>
+            
+            {onRetry && (
+              <button 
+                onClick={async () => {
+                  const { toast } = await import('react-hot-toast');
+                  toast.promise(onRetry(video.$id), {
+                    loading: 'Re-queueing summary...',
+                    success: 'Successfully re-queued for processing!',
+                    error: 'Failed to re-queue. Please try again.'
+                  });
+                }}
+                className="shrink-0 px-3 py-1.5 text-xs font-medium text-surface-200 bg-surface-800 hover:bg-surface-700 border border-surface-700 hover:border-surface-600 rounded-lg transition-all flex items-center gap-1.5"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Retry
+              </button>
+            )}
           </div>
         </div>
       )}
