@@ -1,11 +1,12 @@
 /**
  * SummaryCard Component
  * ======================
- * Rich card displaying a video's AI-generated summary
- * with thumbnail, metadata, and expandable view.
+ * Rich card displaying a video's AI-generated summary.
+ * Light theme with clean typography and hover effects.
  */
 
 import { useState } from "react";
+import { ExternalLink, Clock, User, Zap, RotateCcw, AlertTriangle, Loader2, Timer } from "lucide-react";
 
 /**
  * Format an ISO date string into a human-readable relative time.
@@ -27,25 +28,46 @@ function formatRelativeTime(isoString) {
 }
 
 /**
- * Get a status badge configuration.
+ * Status badge config for light theme.
  */
 function getStatusBadge(status) {
   switch (status) {
     case "completed":
-      return { label: "Summarized", color: "bg-success/15 text-success border-success/30" };
+      return {
+        label: "Summarized",
+        bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0',
+        dot: '#10b981',
+      };
     case "processing":
-      return { label: "Processing...", color: "bg-warning/15 text-warning border-warning/30" };
+      return {
+        label: "Processing...",
+        bg: '#fffbeb', color: '#b45309', border: '#fde68a',
+        dot: '#f59e0b',
+      };
     case "pending":
-      return { label: "Pending", color: "bg-info/15 text-info border-info/30" };
+      return {
+        label: "Queued",
+        bg: '#f0f9ff', color: '#0369a1', border: '#bae6fd',
+        dot: '#0ea5e9',
+      };
     case "failed":
-      return { label: "Failed", color: "bg-error/15 text-error border-error/30" };
+      return {
+        label: "Failed",
+        bg: '#fef2f2', color: '#b91c1c', border: '#fecaca',
+        dot: '#ef4444',
+      };
     default:
-      return { label: status, color: "bg-surface-700 text-surface-400 border-surface-600" };
+      return {
+        label: status,
+        bg: 'var(--color-surface-100)', color: 'var(--color-surface-500)', border: 'var(--color-surface-200)',
+        dot: 'var(--color-surface-400)',
+      };
   }
 }
 
 export default function SummaryCard({ video, channelName, index = 0, onRetry }) {
   const [expanded, setExpanded] = useState(false);
+  const [retrying, setRetrying] = useState(false);
   const badge = getStatusBadge(video.status);
 
   const thumbnailUrl =
@@ -54,12 +76,47 @@ export default function SummaryCard({ video, channelName, index = 0, onRetry }) 
 
   const videoUrl = `https://www.youtube.com/watch?v=${video.video_id}`;
 
+  const handleRetry = async () => {
+    if (retrying || !onRetry) return;
+    setRetrying(true);
+    try {
+      const { toast } = await import('react-hot-toast');
+      await toast.promise(onRetry(video.$id ?? video.id), {
+        loading: 'Re-queueing summary...',
+        success: 'Successfully re-queued for processing!',
+        error: 'Failed to re-queue. Please try again.',
+      });
+    } finally {
+      setRetrying(false);
+    }
+  };
+
   return (
     <article
-      className="glass rounded-xl overflow-hidden hover:border-accent-500/30 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-accent-500/5 animate-fade-in-up"
-      style={{ animationDelay: `${index * 0.08}s`, opacity: 0 }}
+      className="animate-fade-in-up rounded-2xl overflow-hidden"
+      style={{
+        animationDelay: `${index * 0.07}s`,
+        opacity: 0,
+        background: '#ffffff',
+        border: '1px solid var(--color-surface-200)',
+        boxShadow: '0 1px 4px rgba(15,23,42,0.06)',
+        transition: 'all 0.22s ease',
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.boxShadow = '0 6px 24px rgba(15,23,42,0.1)';
+        e.currentTarget.style.borderColor = 'var(--color-surface-300)';
+        e.currentTarget.style.transform = 'translateY(-2px)';
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.boxShadow = '0 1px 4px rgba(15,23,42,0.06)';
+        e.currentTarget.style.borderColor = 'var(--color-surface-200)';
+        e.currentTarget.style.transform = '';
+      }}
     >
-      {/* Thumbnail + metadata header */}
+      {/* Status stripe at top */}
+      <div className="h-0.5 w-full" style={{ background: badge.dot === '#10b981' ? 'linear-gradient(90deg, #10b981, #34d399)' : badge.dot === '#ef4444' ? 'linear-gradient(90deg, #ef4444, #f87171)' : badge.dot === '#f59e0b' ? 'linear-gradient(90deg, #f59e0b, #fbbf24)' : 'var(--color-surface-100)' }} />
+
+      {/* Main content */}
       <div className="flex gap-4 p-5">
         {/* Thumbnail */}
         <a
@@ -67,18 +124,26 @@ export default function SummaryCard({ video, channelName, index = 0, onRetry }) 
           target="_blank"
           rel="noopener noreferrer"
           className="shrink-0 group/thumb"
+          style={{ display: 'block' }}
         >
-          <div className="relative w-40 h-[90px] rounded-lg overflow-hidden bg-surface-800">
+          <div className="relative rounded-xl overflow-hidden" style={{ width: '160px', height: '90px', background: 'var(--color-surface-100)' }}>
             <img
               src={thumbnailUrl}
               alt={video.title}
-              className="w-full h-full object-cover group-hover/thumb:scale-105 transition-transform duration-300"
+              className="w-full h-full object-cover transition-transform duration-300 group-hover/thumb:scale-105"
               loading="lazy"
+              onError={e => { e.currentTarget.style.display = 'none'; }}
             />
             {/* Play overlay */}
-            <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/thumb:opacity-100 transition-opacity duration-200 flex items-center justify-center">
-              <div className="w-10 h-10 rounded-full bg-yt-red flex items-center justify-center shadow-lg">
-                <svg className="w-5 h-5 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+            <div
+              className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-opacity duration-200"
+              style={{ background: 'rgba(0,0,0,0.35)' }}
+            >
+              <div
+                className="w-9 h-9 rounded-full flex items-center justify-center shadow-lg"
+                style={{ background: '#ff0000' }}
+              >
+                <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M8 5v14l11-7z" />
                 </svg>
               </div>
@@ -88,58 +153,79 @@ export default function SummaryCard({ video, channelName, index = 0, onRetry }) 
 
         {/* Title + metadata */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2">
+          <div className="flex items-start justify-between gap-3 mb-2">
             <a
               href={videoUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-surface-100 font-semibold text-sm leading-snug hover:text-accent-400 transition-colors line-clamp-2"
+              className="font-semibold text-sm leading-snug line-clamp-2 transition-colors"
+              style={{ color: 'var(--color-surface-900)' }}
+              onMouseEnter={e => { e.currentTarget.style.color = 'var(--color-accent-600)'; }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'var(--color-surface-900)'; }}
             >
               {video.title}
             </a>
-            <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full border ${badge.color}`}>
+
+            {/* Status badge */}
+            <span
+              className="shrink-0 text-[11px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1.5"
+              style={{ background: badge.bg, color: badge.color, border: `1px solid ${badge.border}` }}
+            >
+              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: badge.dot }} />
               {badge.label}
             </span>
           </div>
 
-          <div className="mt-2 flex items-center gap-3 text-xs text-surface-400">
+          <div className="flex flex-wrap items-center gap-3 text-xs" style={{ color: 'var(--color-surface-400)' }}>
             {channelName && (
               <span className="flex items-center gap-1">
-                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
-                </svg>
-                {channelName}
+                <User className="w-3 h-3" />
+                <span className="font-medium" style={{ color: 'var(--color-surface-600)' }}>{channelName}</span>
               </span>
             )}
             <span className="flex items-center gap-1">
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+              <Clock className="w-3 h-3" />
               {formatRelativeTime(video.published_at)}
             </span>
+            <a
+              href={videoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 transition-colors hover:text-accent-500"
+              style={{ color: 'var(--color-surface-400)' }}
+            >
+              <ExternalLink className="w-3 h-3" />
+              Watch
+            </a>
           </div>
         </div>
       </div>
 
-      {/* AI Summary */}
+      {/* ── AI Summary (completed) ── */}
       {video.status === "completed" && video.ai_summary && (
         <div className="px-5 pb-5">
-          <div className="border-t border-surface-700/50 pt-4">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-5 h-5 rounded-md bg-gradient-to-br from-accent-500 to-info flex items-center justify-center">
-                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
+          <div className="rounded-xl p-4" style={{ background: 'var(--color-surface-50)', border: '1px solid var(--color-surface-100)' }}>
+            <div className="flex items-center gap-2 mb-2.5">
+              <div
+                className="w-5 h-5 rounded-md flex items-center justify-center"
+                style={{ background: 'linear-gradient(135deg, #2563eb, #6366f1)' }}
+              >
+                <Zap className="w-3 h-3 text-white" />
               </div>
-              <span className="text-xs font-semibold text-surface-300 uppercase tracking-wider">
+              <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--color-accent-600)' }}>
                 AI Summary
               </span>
             </div>
 
             <div
-              className={`text-sm text-surface-300 leading-relaxed whitespace-pre-wrap ${
-                !expanded ? "line-clamp-6" : ""
-              }`}
+              className="text-sm leading-relaxed whitespace-pre-wrap"
+              style={{
+                color: 'var(--color-surface-700)',
+                display: !expanded ? '-webkit-box' : 'block',
+                WebkitLineClamp: !expanded ? 6 : 'unset',
+                WebkitBoxOrient: 'vertical',
+                overflow: !expanded ? 'hidden' : 'visible',
+              }}
             >
               {video.ai_summary}
             </div>
@@ -147,7 +233,10 @@ export default function SummaryCard({ video, channelName, index = 0, onRetry }) 
             {video.ai_summary.length > 400 && (
               <button
                 onClick={() => setExpanded(!expanded)}
-                className="mt-3 text-xs text-accent-400 hover:text-accent-300 font-medium transition-colors cursor-pointer flex items-center gap-1"
+                className="mt-3 text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                style={{ color: 'var(--color-accent-600)' }}
+                onMouseEnter={e => { e.currentTarget.style.color = 'var(--color-accent-800)'; }}
+                onMouseLeave={e => { e.currentTarget.style.color = 'var(--color-accent-600)'; }}
               >
                 {expanded ? (
                   <>
@@ -170,66 +259,55 @@ export default function SummaryCard({ video, channelName, index = 0, onRetry }) 
         </div>
       )}
 
-      {/* Processing state */}
+      {/* ── Processing state ── */}
       {video.status === "processing" && (
         <div className="px-5 pb-5">
-          <div className="border-t border-surface-700/50 pt-4">
-            <div className="flex items-center gap-3 text-sm text-surface-400">
-              <svg className="animate-spin w-4 h-4 text-warning" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-              AI is generating the summary...
-            </div>
+          <div className="rounded-xl px-4 py-3 flex items-center gap-3" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
+            <Loader2 className="w-4 h-4 animate-spin shrink-0" style={{ color: '#f59e0b' }} />
+            <span className="text-sm font-medium" style={{ color: '#b45309' }}>AI is generating the summary…</span>
           </div>
         </div>
       )}
 
-      {/* Failed state */}
+      {/* ── Pending state ── */}
+      {video.status === "pending" && (
+        <div className="px-5 pb-5">
+          <div className="rounded-xl px-4 py-3 flex items-center gap-3" style={{ background: '#f0f9ff', border: '1px solid #bae6fd' }}>
+            <Timer className="w-4 h-4 shrink-0" style={{ color: '#0ea5e9' }} />
+            <span className="text-sm font-medium" style={{ color: '#0369a1' }}>Queued for processing — will run next hour</span>
+          </div>
+        </div>
+      )}
+
+      {/* ── Failed state ── */}
       {video.status === "failed" && (
         <div className="px-5 pb-5">
-          <div className="border-t border-surface-700/50 pt-4 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm text-error/80 flex-1 min-w-0 pr-4">
-              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-              <span className="truncate">
+          <div className="rounded-xl px-4 py-3 flex items-center justify-between gap-3" style={{ background: '#fef2f2', border: '1px solid #fecaca' }}>
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <AlertTriangle className="w-4 h-4 shrink-0" style={{ color: '#ef4444' }} />
+              <span className="text-sm truncate" style={{ color: '#b91c1c' }}>
                 {video.error_message || "Failed to generate summary"}
               </span>
             </div>
-            
+
             {onRetry && (
-              <button 
-                onClick={async () => {
-                  const { toast } = await import('react-hot-toast');
-                  toast.promise(onRetry(video.$id ?? video.id), {
-                    loading: 'Re-queueing summary...',
-                    success: 'Successfully re-queued for processing!',
-                    error: 'Failed to re-queue. Please try again.'
-                  });
+              <button
+                onClick={handleRetry}
+                disabled={retrying}
+                className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all"
+                style={{
+                  background: '#ffffff',
+                  color: '#b91c1c',
+                  border: '1px solid #fecaca',
+                  opacity: retrying ? 0.7 : 1,
                 }}
-                className="shrink-0 px-3 py-1.5 text-xs font-medium text-surface-200 bg-surface-800 hover:bg-surface-700 border border-surface-700 hover:border-surface-600 rounded-lg transition-all flex items-center gap-1.5"
+                onMouseEnter={e => { if (!retrying) { e.currentTarget.style.background = '#fff0f0'; }}}
+                onMouseLeave={e => { e.currentTarget.style.background = '#ffffff'; }}
               >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                Retry
+                <RotateCcw className={`w-3.5 h-3.5 ${retrying ? 'animate-spin' : ''}`} />
+                {retrying ? 'Retrying...' : 'Retry'}
               </button>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* Pending state */}
-      {video.status === "pending" && (
-        <div className="px-5 pb-5">
-          <div className="border-t border-surface-700/50 pt-4">
-            <div className="flex items-center gap-2 text-sm text-surface-500">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Queued for processing...
-            </div>
           </div>
         </div>
       )}

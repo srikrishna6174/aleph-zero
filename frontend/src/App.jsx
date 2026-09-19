@@ -12,32 +12,34 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         {/* Global Toast Notifications */}
-        <Toaster 
+        <Toaster
           position="bottom-right"
           toastOptions={{
             duration: 4000,
             style: {
-              background: '#1a1e30',
-              color: '#d9dce6',
-              border: '1px solid rgba(167, 139, 250, 0.2)',
-              fontSize: '14px',
+              background: '#ffffff',
+              color: '#1e293b',
+              border: '1px solid #e2e8f0',
+              fontSize: '13.5px',
+              fontWeight: '500',
               borderRadius: '12px',
+              boxShadow: '0 4px 16px rgba(15, 23, 42, 0.12), 0 1px 4px rgba(15, 23, 42, 0.08)',
             },
             success: {
               iconTheme: {
-                primary: '#34d399',
-                secondary: '#1a1e30',
+                primary: '#10b981',
+                secondary: '#ffffff',
               },
             },
             error: {
               iconTheme: {
-                primary: '#f87171',
-                secondary: '#1a1e30',
+                primary: '#ef4444',
+                secondary: '#ffffff',
               },
             },
           }}
         />
-        
+
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />

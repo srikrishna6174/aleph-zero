@@ -50,6 +50,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Validate required secrets
+        run: |
+          if [ -z "$APPWRITE_API_KEY" ]; then
+            echo "::error::APPWRITE_API_KEY secret is not set. Go to Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "::error::GEMINI_API_KEY secret is not set. Go to Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          echo "✅ All required secrets are present."
+
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
@@ -63,3 +75,7 @@ jobs:
       - name: Run worker
         working-directory: worker
         run: python worker.py
+
+      - name: Worker completed
+        if: success()
+        run: echo "::notice::Worker completed successfully."
