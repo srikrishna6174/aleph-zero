@@ -178,6 +178,7 @@ def run_worker():
             logger.warning(f"Failed to mark {video.video_id} as processing: {e}")
 
         # 4b. Fetch transcript
+        transcript_result = None
         try:
             transcript_result = fetch_transcript(
                 video_id=video.video_id,
@@ -185,31 +186,42 @@ def run_worker():
             )
         except TranscriptFetchError as e:
             error_msg = str(e)
-            logger.warning(f"Transcript unavailable for {video.video_id}: {error_msg}")
-            try:
-                aw_client.mark_video_failed(document_id, f"Transcript: {error_msg}")
-            except Exception:
-                pass
-            fail_count += 1
-            continue
-        except Exception as e:
-            error_msg = f"Unexpected transcript error: {e}"
-            logger.error(error_msg)
-            try:
-                aw_client.mark_video_failed(document_id, error_msg)
-            except Exception:
-                pass
-            fail_count += 1
-            continue
-
-        # 4c. Summarize via Gemini
-        try:
-            summary = summarizer.summarize(
-                chunks=transcript_result.chunks,
-                video_title=video.title,
-                max_retries=worker_config.max_retries,
-                retry_delay=worker_config.retry_delay_seconds,
+            logger.warning(
+                f"All transcript layers failed for {video.video_id}: {error_msg}\n"
+                f"→ Falling back to metadata-only AI summary."
             )
+        except Exception as e:
+            logger.error(f"Unexpected transcript error for {video.video_id}: {e}")
+            # Still attempt metadata fallback
+
+        # 4c. Summarize via Gemini (transcript or metadata fallback)
+        try:
+            if transcript_result is not None:
+                # Normal path: full transcript summary
+                summary = summarizer.summarize(
+                    chunks=transcript_result.chunks,
+                    video_title=video.title,
+                    max_retries=worker_config.max_retries,
+                    retry_delay=worker_config.retry_delay_seconds,
+                )
+                lang_info = transcript_result.language
+                translated_info = transcript_result.was_translated
+                source_info = getattr(transcript_result, "source", "unknown")
+            else:
+                # Metadata fallback: summarize from title only
+                summary = summarizer.summarize_from_metadata(
+                    video_title=video.title,
+                    description="",
+                    max_retries=worker_config.max_retries,
+                    retry_delay=worker_config.retry_delay_seconds,
+                )
+                lang_info = "metadata-only"
+                translated_info = False
+                source_info = "metadata-fallback"
+                logger.info(
+                    f"[Metadata Fallback] Generated partial summary for {video.video_id} "
+                    f"from title: {video.title!r}"
+                )
         except Exception as e:
             error_msg = f"Summarization failed: {e}"
             logger.error(error_msg)
@@ -227,8 +239,9 @@ def run_worker():
             logger.info(
                 f"✅ Successfully summarized {video.video_id} "
                 f"({len(summary)} chars, "
-                f"lang={transcript_result.language}, "
-                f"translated={transcript_result.was_translated})"
+                f"lang={lang_info}, "
+                f"translated={translated_info}, "
+                f"source={source_info})"
             )
         except Exception as e:
             logger.error(f"Unexpected error processing video {video.video_id}: {e}", exc_info=True)

@@ -66,6 +66,20 @@ Transcript:
 {transcript_text}"""
 
 
+NO_TRANSCRIPT_PROMPT = """No transcript is available for this video. Based only on the information provided below, write the best summary you can.
+
+IMPORTANT: Be transparent — start the TL;DR with "(No transcript available)" to inform the reader.
+Do your best to infer the likely content, key topics, and value of the video from the available metadata.
+
+Video Title: {video_title}
+{description_section}
+
+Output Format:
+- **TL;DR**: A 1-2 sentence summary, prefixed with "(No transcript available)"
+- **Likely Topics**: Bullet list of probable subjects covered, based on the title/description
+- **Note**: One sentence explaining that this summary was auto-generated from metadata only"""
+
+
 # ─── Summarizer Class ───────────────────────────────────────────────────────
 
 class Summarizer:
@@ -84,6 +98,7 @@ class Summarizer:
         max_retries: int = 5,
         retry_delay: int = 10,
     ) -> str:
+        """Summarize a transcript. Use summarize_from_metadata() when no transcript exists."""
         """
         Summarize a video transcript (provided as chunks).
 
@@ -99,7 +114,7 @@ class Summarizer:
 
         Returns:
             The AI-generated summary as a string.
-        """
+        """  # noqa: D401
         if not chunks:
             return "No transcript available for summarization."
 
@@ -148,6 +163,37 @@ class Summarizer:
             )
             logger.info("Successfully merged chunk summaries into final summary")
             return final_summary
+
+    def summarize_from_metadata(
+        self,
+        video_title: str,
+        description: str = "",
+        max_retries: int = 3,
+        retry_delay: int = 5,
+    ) -> str:
+        """
+        Generate a best-effort summary using only title and description.
+        Called when ALL transcript layers fail (no captions on the video).
+
+        Args:
+            video_title: The video title.
+            description: Optional video description (from RSS / Appwrite).
+            max_retries: Number of retry attempts on failure.
+            retry_delay: Seconds to wait between retries.
+
+        Returns:
+            A partial AI-generated summary string flagged as metadata-only.
+        """
+        logger.info(f"Generating metadata-only summary for: {video_title!r}")
+        description_section = (
+            f"Description:\n{description.strip()}" if description and description.strip()
+            else "Description: (not available)"
+        )
+        prompt = NO_TRANSCRIPT_PROMPT.format(
+            video_title=video_title,
+            description_section=description_section,
+        )
+        return self._call_gemini(prompt, max_retries, retry_delay)
 
     def _call_gemini(
         self, prompt: str, max_retries: int, retry_delay: int
