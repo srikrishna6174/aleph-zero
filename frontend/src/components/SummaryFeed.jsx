@@ -1,10 +1,3 @@
-/**
- * SummaryFeed Component
- * ======================
- * Main dashboard feed displaying AI summaries with
- * infinite scroll pagination and real-time updates.
- */
-
 import { RefreshCw, Zap, FileText, Plus } from "lucide-react";
 import { Link } from "react-router-dom";
 import SummaryCard from "./SummaryCard";
@@ -19,7 +12,6 @@ export default function SummaryFeed({
   limit,
   onRetry,
 }) {
-  // Build a quick channel_id → name lookup map
   const channelMap = {};
   for (const ch of channels) {
     const id = ch.channel_id ?? ch.data?.channel_id;
@@ -30,24 +22,21 @@ export default function SummaryFeed({
   const displaySummaries = limit ? summaries.slice(0, limit) : summaries;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Feed header */}
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
           <div
-            className="w-7 h-7 rounded-lg flex items-center justify-center"
-            style={{ background: 'linear-gradient(135deg, var(--color-accent-500), var(--color-indigo-500))' }}
+            className="w-8 h-8 rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(59,130,246,0.3)]"
+            style={{ background: 'linear-gradient(135deg, var(--color-accent-600), var(--color-indigo-600))' }}
           >
-            <Zap className="w-3.5 h-3.5 text-white" />
+            <Zap className="w-4 h-4 text-white" />
           </div>
-          <h2 className="text-base font-bold" style={{ color: 'var(--color-surface-900)' }}>
+          <h2 className="text-lg font-bold text-white tracking-wide">
             Latest Summaries
           </h2>
           {summaries.length > 0 && (
-            <span
-              className="text-xs font-semibold px-2 py-0.5 rounded-full"
-              style={{ background: 'var(--color-accent-50)', color: 'var(--color-accent-700)', border: '1px solid var(--color-accent-200)' }}
-            >
+            <span className="badge badge-blue ml-2">
               {summaries.length}
             </span>
           )}
@@ -56,36 +45,29 @@ export default function SummaryFeed({
           id="refresh-feed-btn"
           onClick={onRefresh}
           disabled={loading}
-          className="btn-secondary text-xs py-1.5 px-3 cursor-pointer disabled:opacity-50"
-          style={{ fontSize: '12px', borderRadius: '8px', padding: '6px 12px' }}
+          className="btn-secondary text-xs py-2 px-4 cursor-pointer disabled:opacity-50"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           Refresh
         </button>
       </div>
 
       {/* Empty state */}
       {!loading && summaries.length === 0 && (
-        <div
-          className="rounded-2xl p-12 text-center animate-fade-in"
-          style={{ background: '#ffffff', border: '1px solid var(--color-surface-200)', boxShadow: '0 1px 4px rgba(15,23,42,0.04)' }}
-        >
-          <div
-            className="w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center"
-            style={{ background: 'linear-gradient(135deg, var(--color-accent-50), #ede9fe)' }}
-          >
-            <FileText className="w-8 h-8" style={{ color: 'var(--color-accent-500)' }} />
+        <div className="glass-card p-16 text-center animate-fade-in-up">
+          <div className="w-20 h-20 mx-auto mb-6 rounded-3xl flex items-center justify-center bg-white/5 border border-white/10 relative shadow-2xl">
+            <div className="absolute inset-0 bg-blue-500/10 blur-xl rounded-full"></div>
+            <FileText className="w-10 h-10 text-blue-400 relative z-10" />
           </div>
-          <h3 className="text-base font-bold mb-2" style={{ color: 'var(--color-surface-800)' }}>
+          <h3 className="text-xl font-bold text-white mb-3 tracking-wide">
             No summaries yet
           </h3>
-          <p className="text-sm mb-5 max-w-sm mx-auto" style={{ color: 'var(--color-surface-500)' }}>
-            Add YouTube channels to your watchlist. The AI worker processes new uploads every hour and generates summaries automatically.
+          <p className="text-sm text-gray-400 mb-8 max-w-md mx-auto leading-relaxed">
+            Add YouTube channels to your watchlist. The AI worker processes new uploads every hour and generates summaries automatically using Gemini 2.0.
           </p>
           <Link
             to="/channels"
-            className="btn-primary inline-flex"
-            style={{ borderRadius: '10px', fontSize: '13.5px', padding: '8px 18px' }}
+            className="btn-primary inline-flex text-sm py-3 px-6 shadow-[0_0_20px_rgba(59,130,246,0.2)]"
           >
             <Plus className="w-4 h-4" />
             Add your first channel
@@ -95,25 +77,24 @@ export default function SummaryFeed({
 
       {/* Loading skeleton */}
       {loading && summaries.length === 0 && (
-        <div className="space-y-4">
+        <div className="space-y-6">
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="rounded-2xl p-5"
-              style={{ background: '#ffffff', border: '1px solid var(--color-surface-200)', boxShadow: '0 1px 4px rgba(15,23,42,0.04)' }}
+              className="glass-card p-6"
             >
-              <div className="flex gap-4">
+              <div className="flex gap-5">
                 <div className="skeleton rounded-xl shrink-0" style={{ width: '160px', height: '90px' }} />
-                <div className="flex-1 space-y-3 pt-1">
-                  <div className="skeleton h-4 rounded-lg" style={{ width: '75%' }} />
-                  <div className="skeleton h-3 rounded-lg" style={{ width: '50%' }} />
-                  <div className="skeleton h-3 rounded-lg" style={{ width: '35%' }} />
+                <div className="flex-1 space-y-4 pt-2">
+                  <div className="skeleton h-4 rounded-lg w-3/4" />
+                  <div className="skeleton h-3 rounded-lg w-1/2" />
+                  <div className="skeleton h-3 rounded-lg w-1/3" />
                 </div>
               </div>
-              <div className="mt-4 pt-4 space-y-2" style={{ borderTop: '1px solid var(--color-surface-100)' }}>
-                <div className="skeleton h-3 rounded-lg" style={{ width: '100%' }} />
-                <div className="skeleton h-3 rounded-lg" style={{ width: '88%' }} />
-                <div className="skeleton h-3 rounded-lg" style={{ width: '72%' }} />
+              <div className="mt-6 pt-5 space-y-3 border-t border-white/5">
+                <div className="skeleton h-3.5 rounded-lg w-full" />
+                <div className="skeleton h-3.5 rounded-lg w-11/12" />
+                <div className="skeleton h-3.5 rounded-lg w-4/5" />
               </div>
             </div>
           ))}
@@ -122,7 +103,7 @@ export default function SummaryFeed({
 
       {/* Summary cards */}
       {displaySummaries.length > 0 && (
-        <div className="space-y-4">
+        <div className="space-y-6">
           {displaySummaries.map((video, index) => (
             <SummaryCard
               key={video.$id ?? video.id}
@@ -137,12 +118,12 @@ export default function SummaryFeed({
 
       {/* Load more */}
       {hasMore && displaySummaries.length > 0 && (
-        <div className="flex justify-center pt-2">
+        <div className="flex justify-center pt-6 pb-8">
           <button
             id="load-more-btn"
             onClick={onLoadMore}
             disabled={loading}
-            className="btn-secondary px-8 py-2.5 text-sm cursor-pointer disabled:opacity-50"
+            className="btn-secondary px-8 py-3 text-sm cursor-pointer disabled:opacity-50"
           >
             {loading ? (
               <span className="inline-flex items-center gap-2">

@@ -1,9 +1,3 @@
-/**
- * DashboardPage
- * ==============
- * Overview page showing stats and recent activity — light theme.
- */
-
 import { useEffect, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
@@ -50,29 +44,22 @@ export default function DashboardPage() {
       <title>Overview — TubeDigest</title>
 
       {/* Welcome Header */}
-      <div className="mb-8 animate-fade-in">
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+      <div className="mb-10 animate-fade-in-up">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <Sparkles className="w-5 h-5" style={{ color: 'var(--color-accent-500)' }} />
-              <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--color-accent-600)' }}>
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles className="w-5 h-5 text-blue-400" />
+              <span className="text-xs font-bold uppercase tracking-widest text-blue-400">
                 Dashboard
               </span>
             </div>
-            <h1 className="text-3xl font-bold tracking-tight" style={{ color: 'var(--color-surface-900)' }}>
+            <h1 className="text-4xl font-extrabold tracking-tight text-white mb-2">
               {greeting},{" "}
-              <span
-                style={{
-                  background: 'linear-gradient(135deg, var(--color-accent-600), var(--color-indigo-500))',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text',
-                }}
-              >
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">
                 {firstName || "there"}
               </span>{" "}👋
             </h1>
-            <p className="mt-2 text-sm" style={{ color: 'var(--color-surface-500)' }}>
+            <p className="mt-2 text-sm text-gray-400">
               Here's what your AI engine has been processing recently.
             </p>
           </div>
@@ -80,10 +67,10 @@ export default function DashboardPage() {
           {channels.length === 0 && (
             <Link
               to="/channels"
-              className="btn-primary shrink-0 self-start"
-              style={{ borderRadius: '12px', padding: '10px 18px' }}
+              className="btn-primary shrink-0 self-start shadow-[0_0_20px_rgba(59,130,246,0.3)]"
+              style={{ borderRadius: '12px', padding: '12px 24px' }}
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-5 h-5" />
               Track your first channel
             </Link>
           )}
@@ -94,21 +81,18 @@ export default function DashboardPage() {
       <StatsBar channels={channels} summaries={summaries} />
 
       {/* Divider */}
-      <div className="my-6" style={{ borderTop: '1px solid var(--color-surface-200)' }} />
+      <div className="my-8 h-px bg-white/10" />
 
       {/* Recent Feed */}
       <div>
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-lg font-bold" style={{ color: 'var(--color-surface-900)' }}>Recent Activity</h2>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--color-surface-400)' }}>Showing latest 5 processed videos</p>
+            <h2 className="text-xl font-bold text-white tracking-wide">Recent Activity</h2>
+            <p className="text-sm mt-1 text-gray-400">Showing latest 5 processed videos</p>
           </div>
           <Link
             to="/library"
-            className="flex items-center gap-1.5 text-sm font-semibold transition-colors"
-            style={{ color: 'var(--color-accent-600)' }}
-            onMouseEnter={e => { e.currentTarget.style.color = 'var(--color-accent-800)'; }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'var(--color-accent-600)'; }}
+            className="flex items-center gap-1.5 text-sm font-bold transition-colors text-blue-400 hover:text-blue-300"
           >
             View all
             <ArrowRight className="w-4 h-4" />

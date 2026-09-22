@@ -1,9 +1,3 @@
-/**
- * LibraryPage
- * ============
- * Advanced summary history view with filtering and search — light theme.
- */
-
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
@@ -77,28 +71,28 @@ export default function LibraryPage() {
       label: "All",
       icon: PlayCircle,
       count: stats.all,
-      activeStyle: { background: 'var(--color-surface-900)', color: '#fff' },
+      activeStyle: { background: 'var(--color-surface-800)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)' },
     },
     {
       id: "completed",
       label: "Summarized",
       icon: CheckCircle2,
       count: stats.completed,
-      activeStyle: { background: '#15803d', color: '#fff' },
+      activeStyle: { background: 'rgba(16, 185, 129, 0.2)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.4)' },
     },
     {
       id: "processing",
       label: "Processing",
       icon: Loader2,
       count: stats.processing,
-      activeStyle: { background: '#b45309', color: '#fff' },
+      activeStyle: { background: 'rgba(245, 158, 11, 0.2)', color: '#fbbf24', border: '1px solid rgba(245, 158, 11, 0.4)' },
     },
     {
       id: "failed",
       label: "Failed",
       icon: AlertTriangle,
       count: stats.failed,
-      activeStyle: { background: '#b91c1c', color: '#fff' },
+      activeStyle: { background: 'rgba(239, 68, 68, 0.2)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.4)' },
     },
   ];
 
@@ -107,73 +101,63 @@ export default function LibraryPage() {
       <title>Library — TubeDigest</title>
 
       {/* Page Header */}
-      <div className="mb-6 animate-fade-in">
-        <div className="flex items-center gap-2 mb-1">
-          <Library className="w-5 h-5" style={{ color: 'var(--color-accent-500)' }} />
-          <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--color-accent-600)' }}>
+      <div className="mb-8 animate-fade-in">
+        <div className="flex items-center gap-2 mb-2">
+          <Library className="w-5 h-5 text-blue-400" />
+          <span className="text-xs font-bold uppercase tracking-widest text-blue-400">
             Library
           </span>
         </div>
-        <h1 className="text-3xl font-bold tracking-tight" style={{ color: 'var(--color-surface-900)' }}>
+        <h1 className="text-4xl font-extrabold tracking-tight text-white mb-2">
           Summary Library
         </h1>
-        <p className="text-sm mt-2" style={{ color: 'var(--color-surface-500)' }}>
+        <p className="text-sm text-gray-400 max-w-2xl leading-relaxed">
           Your complete archive of AI-generated video summaries.
         </p>
       </div>
 
       {/* Filters Bar */}
-      <div
-        className="rounded-2xl p-4 mb-6"
-        style={{
-          background: '#ffffff',
-          border: '1px solid var(--color-surface-200)',
-          boxShadow: '0 1px 4px rgba(15,23,42,0.06)',
-        }}
-      >
-        <div className="flex flex-col xl:flex-row gap-3 justify-between xl:items-center">
+      <div className="glass-card p-5 mb-8">
+        <div className="flex flex-col xl:flex-row gap-4 justify-between xl:items-center">
 
           {/* Search */}
-          <div className="relative w-full xl:max-w-sm shrink-0">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--color-surface-400)' }} />
+          <div className="relative w-full xl:max-w-sm shrink-0 group">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-blue-400 transition-colors" />
             <input
               type="text"
               placeholder="Search by title or channel..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="input-light"
-              style={{ paddingLeft: '2.5rem' }}
+              className="input-light pl-10"
             />
           </div>
 
           {/* Status Tabs */}
-          <div className="flex gap-2 overflow-x-auto sidebar-scroll pb-1 md:pb-0">
+          <div className="flex gap-3 overflow-x-auto sidebar-scroll pb-2 md:pb-0">
             {tabs.map((tab) => {
               const isActive = statusFilter === tab.id;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setStatusFilter(tab.id)}
-                  className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-semibold whitespace-nowrap cursor-pointer transition-all duration-200 shrink-0"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap cursor-pointer transition-all duration-200 shrink-0"
                   style={isActive
-                    ? { ...tab.activeStyle, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }
+                    ? { ...tab.activeStyle, boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }
                     : {
-                        background: 'var(--color-surface-50)',
-                        color: 'var(--color-surface-600)',
-                        border: '1px solid var(--color-surface-200)',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        color: 'var(--color-surface-400)',
+                        border: '1px solid rgba(255, 255, 255, 0.05)',
                       }
                   }
-                  onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'var(--color-surface-100)'; }}}
-                  onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'var(--color-surface-50)'; }}}
                 >
-                  <tab.icon className="w-3.5 h-3.5" />
+                  <tab.icon className={`w-4 h-4 ${isActive && tab.id === 'processing' ? 'animate-spin' : ''}`} />
                   {tab.label}
                   {tab.count > 0 && (
                     <span
-                      className="text-[10px] font-bold px-1.5 py-0.5 rounded-md min-w-[20px] text-center"
+                      className="text-[10px] font-bold px-2 py-0.5 rounded-md min-w-[24px] text-center ml-1"
                       style={isActive
-                        ? { background: 'rgba(255,255,255,0.25)', color: 'inherit' }
-                        : { background: 'var(--color-surface-200)', color: 'var(--color-surface-600)' }
+                        ? { background: 'rgba(255,255,255,0.15)', color: 'inherit' }
+                        : { background: 'rgba(255,255,255,0.1)', color: 'var(--color-surface-300)' }
                       }
                     >
                       {tab.count}
@@ -187,16 +171,14 @@ export default function LibraryPage() {
 
         {/* Active filter indicator */}
         {(searchQuery || statusFilter !== 'all') && (
-          <div className="mt-3 flex items-center gap-2">
-            <span className="text-xs" style={{ color: 'var(--color-surface-400)' }}>
-              Showing {filteredSummaries.length} of {summaries.length} summaries
+          <div className="mt-4 flex items-center gap-3 bg-white/5 px-4 py-2 rounded-lg w-fit border border-white/5">
+            <span className="text-xs font-semibold text-gray-400">
+              Showing <span className="text-white">{filteredSummaries.length}</span> of {summaries.length} summaries
             </span>
+            <div className="w-px h-3 bg-white/20"></div>
             <button
               onClick={() => { setSearchQuery(''); setStatusFilter('all'); }}
-              className="text-xs font-medium cursor-pointer transition-colors"
-              style={{ color: 'var(--color-accent-600)' }}
-              onMouseEnter={e => { e.currentTarget.style.color = 'var(--color-accent-800)'; }}
-              onMouseLeave={e => { e.currentTarget.style.color = 'var(--color-accent-600)'; }}
+              className="text-xs font-bold cursor-pointer transition-colors text-blue-400 hover:text-blue-300"
             >
               Clear filters
             </button>
@@ -206,22 +188,16 @@ export default function LibraryPage() {
 
       {/* No results state */}
       {filteredSummaries.length === 0 && !summariesLoading ? (
-        <div
-          className="rounded-2xl p-12 text-center"
-          style={{ background: '#ffffff', border: '1px solid var(--color-surface-200)', boxShadow: '0 1px 4px rgba(15,23,42,0.04)' }}
-        >
-          <div
-            className="w-14 h-14 mx-auto mb-4 rounded-2xl flex items-center justify-center"
-            style={{ background: 'var(--color-surface-100)', border: '1px solid var(--color-surface-200)' }}
-          >
-            <Filter className="w-7 h-7" style={{ color: 'var(--color-surface-400)' }} />
+        <div className="glass-card p-16 text-center">
+          <div className="w-16 h-16 mx-auto mb-5 rounded-2xl flex items-center justify-center bg-white/5 border border-white/10 relative">
+            <div className="absolute inset-0 bg-blue-500/10 blur-xl rounded-full"></div>
+            <Filter className="w-8 h-8 text-gray-400 relative z-10" />
           </div>
-          <h3 className="text-base font-bold mb-2" style={{ color: 'var(--color-surface-800)' }}>No matching videos</h3>
-          <p className="text-sm" style={{ color: 'var(--color-surface-500)' }}>Try adjusting your search or filters.</p>
+          <h3 className="text-xl font-bold mb-2 text-gray-200">No matching videos</h3>
+          <p className="text-sm text-gray-400 mb-6">Try adjusting your search or filters.</p>
           <button
             onClick={() => { setSearchQuery(''); setStatusFilter('all'); }}
-            className="btn-secondary mt-4 text-sm cursor-pointer"
-            style={{ display: 'inline-flex' }}
+            className="btn-secondary text-sm"
           >
             Clear all filters
           </button>

@@ -1,9 +1,3 @@
-/**
- * AuthForm Component
- * ===================
- * Clean, light-theme login/signup form with premium aesthetics.
- */
-
 import { useState } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { Eye, EyeOff, ArrowRight } from "lucide-react";
@@ -53,7 +47,7 @@ export default function AuthForm({ mode = "login", onToggleMode }) {
     <div
       style={{
         minHeight: '100vh',
-        background: 'var(--color-surface-50)',
+        background: 'var(--color-surface-950)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -62,79 +56,72 @@ export default function AuthForm({ mode = "login", onToggleMode }) {
         overflow: 'hidden',
       }}
     >
-      {/* Subtle background decorations — pointer-events none and z-index 0 */}
+      {/* Subtle background decorations */}
       <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 0 }}>
         <div style={{
           position: 'absolute', top: '-160px', right: '-160px',
           width: '500px', height: '500px', borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(219,234,254,0.7) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(59,130,246,0.1) 0%, transparent 70%)',
         }} />
         <div style={{
           position: 'absolute', bottom: '-160px', left: '-160px',
           width: '450px', height: '450px', borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(237,233,254,0.6) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(139,92,246,0.1) 0%, transparent 70%)',
         }} />
         <div style={{
-          position: 'absolute', inset: 0, opacity: 0.35,
-          backgroundImage: 'radial-gradient(var(--color-surface-200) 1px, transparent 1px)',
-          backgroundSize: '28px 28px',
+          position: 'absolute', inset: 0, opacity: 0.15,
+          backgroundImage: 'radial-gradient(rgba(255,255,255,0.2) 1px, transparent 1px)',
+          backgroundSize: '32px 32px',
         }} />
       </div>
 
       {/* Content */}
       <div className="animate-fade-in-up" style={{ width: '100%', maxWidth: '420px', position: 'relative', zIndex: 1 }}>
         {/* Brand */}
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
             <div style={{
-              width: '48px', height: '48px', borderRadius: '16px', display: 'flex',
+              width: '56px', height: '56px', borderRadius: '16px', display: 'flex',
               alignItems: 'center', justifyContent: 'center',
-              background: 'linear-gradient(135deg, #2563eb, #6366f1)',
-              boxShadow: '0 4px 16px rgba(37,99,235,0.3)',
+              background: 'linear-gradient(135deg, var(--color-accent-600), var(--color-indigo-600))',
+              boxShadow: '0 8px 30px rgba(37,99,235,0.4)',
             }}>
-              <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}>
+              <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
             <div style={{ textAlign: 'left' }}>
               <h1 style={{
-                fontSize: '24px', fontWeight: 800, lineHeight: 1,
-                background: 'linear-gradient(135deg, #2563eb, #6366f1)',
-                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+                fontSize: '28px', fontWeight: 800, lineHeight: 1.1,
+                color: 'white',
               }}>
                 TubeDigest
               </h1>
-              <p style={{ fontSize: '11px', color: 'var(--color-surface-400)', marginTop: '2px' }}>Powered by Gemini AI</p>
+              <p className="gradient-text uppercase tracking-widest font-bold" style={{ fontSize: '11px', marginTop: '2px' }}>AI Engine</p>
             </div>
           </div>
-          <p style={{ fontSize: '14px', color: 'var(--color-surface-500)' }}>
-            AI-powered YouTube channel summaries, delivered hourly
+          <p style={{ fontSize: '15px', color: 'var(--color-surface-400)' }}>
+            AI-powered YouTube channel summaries
           </p>
         </div>
 
         {/* Form Card */}
-        <div style={{
-          background: '#ffffff',
-          border: '1px solid var(--color-surface-200)',
-          borderRadius: '20px',
-          padding: '2rem',
-          boxShadow: '0 4px 24px rgba(15,23,42,0.08), 0 1px 6px rgba(15,23,42,0.05)',
-        }}>
-          <div style={{ marginBottom: '1.5rem' }}>
-            <h2 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--color-surface-900)' }}>
-              {isLogin ? "Welcome back 👋" : "Create your account"}
+        <div className="glass-card" style={{ padding: '2.5rem' }}>
+          <div style={{ marginBottom: '2rem' }}>
+            <h2 style={{ fontSize: '24px', fontWeight: 800, color: 'white', letterSpacing: '-0.02em' }}>
+              {isLogin ? "Welcome back 👋" : "Create account"}
             </h2>
-            <p style={{ fontSize: '13.5px', color: 'var(--color-surface-500)', marginTop: '4px' }}>
-              {isLogin ? "Sign in to access your summaries" : "Start tracking channels for free"}
+            <p style={{ fontSize: '14px', color: 'var(--color-surface-400)', marginTop: '8px' }}>
+              {isLogin ? "Sign in to access your dashboard" : "Start tracking channels for free"}
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {/* Name (signup only) */}
             {!isLogin && (
               <div className="animate-fade-in">
-                <label htmlFor="auth-name" style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--color-surface-700)', marginBottom: '6px' }}>
+                <label htmlFor="auth-name" style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--color-surface-400)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Full Name
                 </label>
                 <input
@@ -150,7 +137,7 @@ export default function AuthForm({ mode = "login", onToggleMode }) {
 
             {/* Email */}
             <div>
-              <label htmlFor="auth-email" style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--color-surface-700)', marginBottom: '6px' }}>
+              <label htmlFor="auth-email" style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--color-surface-400)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 Email Address
               </label>
               <input
@@ -166,7 +153,7 @@ export default function AuthForm({ mode = "login", onToggleMode }) {
 
             {/* Password */}
             <div>
-              <label htmlFor="auth-password" style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--color-surface-700)', marginBottom: '6px' }}>
+              <label htmlFor="auth-password" style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--color-surface-400)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 Password
               </label>
               <div style={{ position: 'relative' }}>
@@ -184,10 +171,10 @@ export default function AuthForm({ mode = "login", onToggleMode }) {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-surface-400)', cursor: 'pointer', background: 'none', border: 'none', padding: 0 }}
+                  style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-surface-500)', cursor: 'pointer', background: 'none', border: 'none', padding: 0 }}
                   tabIndex={-1}
                 >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
@@ -197,12 +184,12 @@ export default function AuthForm({ mode = "login", onToggleMode }) {
               <div
                 className="animate-fade-in"
                 style={{
-                  padding: '10px 14px', borderRadius: '12px', fontSize: '13px',
-                  background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c',
-                  display: 'flex', alignItems: 'flex-start', gap: '8px',
+                  padding: '12px 16px', borderRadius: '12px', fontSize: '13px', fontWeight: 600,
+                  background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#f87171',
+                  display: 'flex', alignItems: 'flex-start', gap: '10px', backdropFilter: 'blur(8px)',
                 }}
               >
-                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ flexShrink: 0, marginTop: '1px' }}>
+                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ flexShrink: 0, marginTop: '0px' }}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 {displayError}
@@ -215,11 +202,11 @@ export default function AuthForm({ mode = "login", onToggleMode }) {
               type="submit"
               disabled={loading}
               className="btn-primary"
-              style={{ width: '100%', padding: '12px', borderRadius: '12px', fontSize: '15px', marginTop: '4px' }}
+              style={{ width: '100%', padding: '14px', borderRadius: '12px', fontSize: '15px', marginTop: '8px', letterSpacing: '0.02em' }}
             >
               {loading ? (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                  <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <svg className="animate-spin" width="18" height="18" viewBox="0 0 24 24" fill="none">
                     <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" style={{ opacity: 0.25 }} />
                     <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" style={{ opacity: 0.75 }} />
                   </svg>
@@ -228,19 +215,19 @@ export default function AuthForm({ mode = "login", onToggleMode }) {
               ) : (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                   {isLogin ? "Sign In" : "Create Account"}
-                  <ArrowRight size={16} />
+                  <ArrowRight size={18} />
                 </span>
               )}
             </button>
           </form>
 
-          <div style={{ marginTop: '20px', textAlign: 'center' }}>
-            <p style={{ fontSize: '13.5px', color: 'var(--color-surface-500)' }}>
+          <div style={{ marginTop: '24px', textAlign: 'center' }}>
+            <p style={{ fontSize: '14px', color: 'var(--color-surface-400)' }}>
               {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
               <button
                 id="auth-toggle-mode-btn"
                 onClick={onToggleMode}
-                style={{ color: 'var(--color-accent-600)', fontWeight: 700, cursor: 'pointer', background: 'none', border: 'none', padding: 0, fontSize: '13.5px' }}
+                style={{ color: 'var(--color-accent-400)', fontWeight: 700, cursor: 'pointer', background: 'none', border: 'none', padding: 0, fontSize: '14px' }}
               >
                 {isLogin ? "Sign Up" : "Sign In"}
               </button>
@@ -249,15 +236,15 @@ export default function AuthForm({ mode = "login", onToggleMode }) {
         </div>
 
         {/* Feature chips */}
-        <div style={{ marginTop: '20px', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px' }}>
-          {["Hourly AI summaries", "Zero-setup tracking", "Powered by Gemini"].map((f) => (
+        <div style={{ marginTop: '32px', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '12px' }}>
+          {["Hourly summaries", "Zero-setup tracking", "Powered by Gemini 2.0"].map((f) => (
             <span
               key={f}
               style={{
-                fontSize: '12px', padding: '5px 12px', borderRadius: '999px', fontWeight: 500,
-                background: '#ffffff', border: '1px solid var(--color-surface-200)',
-                color: 'var(--color-surface-500)',
-                boxShadow: '0 1px 3px rgba(15,23,42,0.05)',
+                fontSize: '11px', padding: '6px 14px', borderRadius: '999px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em',
+                background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)',
+                color: 'var(--color-surface-400)',
+                backdropFilter: 'blur(8px)',
               }}
             >
               {f}
