@@ -15,9 +15,15 @@ Flow:
   5. Handle errors gracefully and mark failed documents
 """
 
+import io
 import logging
 import sys
 import time
+
+# Force UTF-8 output on Windows to avoid emoji/unicode logging errors
+if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 from datetime import datetime, timezone
 
 from config import get_appwrite_config, get_gemini_config, get_worker_config
@@ -140,14 +146,14 @@ def run_worker():
         logger.info(f"Processing: {video.title} ({video.video_id})")
         logger.info(f"{'─' * 50}")
 
-        # 4a. Check if this video has a failed document (retry case)
-        existing_failed_id = aw_client.get_failed_video_doc_id(video.video_id)
+        # 4a. Check if this video has a retryable document (failed, or stale processing)
+        existing_retryable_id = aw_client.get_retryable_video_doc_id(video.video_id)
 
         doc = None
-        if existing_failed_id:
-            # Retry: reuse the existing failed document
-            document_id = existing_failed_id
-            logger.info(f"Retrying previously failed video {video.video_id} (doc: {document_id})")
+        if existing_retryable_id:
+            # Retry: reuse the existing document
+            document_id = existing_retryable_id
+            logger.info(f"Retrying previously failed/stale video {video.video_id} (doc: {document_id})")
         else:
             # New video: create a pending document in Appwrite
             try:

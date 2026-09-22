@@ -76,12 +76,13 @@ class AppwriteClient:
 
     def get_existing_video_ids(self, video_ids: list[str]) -> set[str]:
         """
-        Check which video IDs already exist and are completed/processing.
-        Failed videos are NOT included — they are eligible for retry.
+        Check which video IDs already exist and are completed or actively processing.
+        Failed and stale processing videos are NOT included — they are eligible for retry.
         Returns a set of already-processed video IDs to skip.
         """
         existing = set()
         batch_size = 100
+        from datetime import datetime, timezone, timedelta
 
         for i in range(0, len(video_ids), batch_size):
             batch = video_ids[i : i + batch_size]
@@ -91,7 +92,7 @@ class AppwriteClient:
                     table_id=self._config.videos_collection_id,
                     queries=[
                         Query.equal("video_id", batch),
-                        Query.select(["video_id", "status"]),
+                        Query.select(["video_id", "status", "$updatedAt"]),
                         Query.limit(batch_size),
                     ],
                 )
@@ -99,36 +100,69 @@ class AppwriteClient:
                 for row in rows:
                     vid = row.data.get("video_id") if hasattr(row, 'data') else row.get("video_id")
                     status = row.data.get("status") if hasattr(row, 'data') else row.get("status")
-                    # Only skip completed/processing — allow retry on failed
-                    if vid and status in ("completed", "processing", "pending"):
+                    updated_at_str = getattr(row, 'updated_at', None) or row.get("$updatedAt")
+                    
+                    if not vid:
+                        continue
+                        
+                    if status == "completed":
                         existing.add(vid)
+                    elif status in ("processing", "pending"):
+                        # Only skip if it's NOT stale (less than 2 hours old)
+                        is_stale = False
+                        if updated_at_str:
+                            try:
+                                clean_date = updated_at_str.replace("Z", "+00:00")
+                                updated_at = datetime.fromisoformat(clean_date)
+                                if datetime.now(timezone.utc) - updated_at > timedelta(hours=2):
+                                    is_stale = True
+                            except Exception:
+                                pass
+                        
+                        if not is_stale:
+                            existing.add(vid)
             except AppwriteException as e:
                 logger.error(f"Error checking existing videos: {e.message}")
                 raise
 
         return existing
 
-    def get_failed_video_doc_id(self, video_id: str) -> Optional[str]:
+    def get_retryable_video_doc_id(self, video_id: str) -> Optional[str]:
         """
-        Look up a failed video row by video_id and return its document $id.
-        Used for retrying failed summarizations.
+        Look up a video row by video_id and return its document $id if it is
+        either 'failed' OR stuck in 'processing'/'pending' for over 2 hours.
+        Used for retrying failed or stuck summarizations.
         """
         try:
+            from datetime import datetime, timezone, timedelta
             response = self._db.list_rows(
                 database_id=self._config.database_id,
                 table_id=self._config.videos_collection_id,
                 queries=[
                     Query.equal("video_id", [video_id]),
-                    Query.equal("status", ["failed"]),
                     Query.limit(1),
                 ],
             )
             rows = response.rows if hasattr(response, 'rows') else response.get("rows", response.get("documents", []))
             if rows:
                 row = rows[0]
-                return row.id if hasattr(row, 'id') else row.get("$id")
+                status = row.data.get("status") if hasattr(row, 'data') else row.get("status")
+                doc_id = row.id if hasattr(row, 'id') else row.get("$id")
+                updated_at_str = getattr(row, 'updated_at', None) or row.get("$updatedAt")
+                
+                if status == "failed":
+                    return doc_id
+                    
+                if status in ("processing", "pending") and updated_at_str:
+                    try:
+                        clean_date = updated_at_str.replace("Z", "+00:00")
+                        updated_at = datetime.fromisoformat(clean_date)
+                        if datetime.now(timezone.utc) - updated_at > timedelta(hours=2):
+                            return doc_id
+                    except Exception:
+                        pass
         except AppwriteException as e:
-            logger.warning(f"Error looking up failed video {video_id}: {e.message}")
+            logger.warning(f"Error looking up retryable video {video_id}: {e.message}")
         return None
 
     def create_video_document(

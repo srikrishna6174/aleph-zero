@@ -14,9 +14,6 @@ import {
 } from "../lib/appwrite";
 import { useAuth } from "./useAuth";
 
-/**
- * Extract a YouTube channel ID from various URL formats.
- */
 function parseChannelInput(input) {
   const trimmed = input.trim();
 
@@ -29,16 +26,24 @@ function parseChannelInput(input) {
     return { channelId: channelMatch[1], type: "url" };
   }
 
-  const handleMatch = trimmed.match(/youtube\.com\/@([\w.-]+)/);
-  if (handleMatch) {
-    return { handle: handleMatch[1], type: "handle" };
-  }
-
   if (trimmed.startsWith("UC") && trimmed.length >= 20) {
     return { channelId: trimmed, type: "id" };
   }
 
-  return { error: "Invalid input. Please provide a YouTube channel URL or channel ID (starts with UC).", type: "invalid" };
+  const handleMatch = trimmed.match(/youtube\.com\/(?:@)?([\w.-]+)/);
+  if (handleMatch) {
+    const matched = handleMatch[1];
+    if (matched !== 'channel' && matched !== 'watch' && matched !== 'playlist' && matched !== 'feeds') {
+      return { handle: matched, type: "handle" };
+    }
+  }
+
+  if (!trimmed.includes("/") && !trimmed.includes("youtube.com") && trimmed.length > 0) {
+    const handle = trimmed.startsWith("@") ? trimmed.slice(1) : trimmed;
+    return { handle: handle, type: "handle" };
+  }
+
+  return { error: "Invalid input. Please provide a YouTube channel URL, handle, or channel ID (starts with UC).", type: "invalid" };
 }
 
 export function useChannels() {
@@ -105,15 +110,47 @@ export function useChannels() {
         throw new Error(parsed.error);
       }
 
+      let channelId = parsed.channelId;
+
       if (parsed.type === "handle") {
-        const msg =
-          "YouTube @handles cannot be resolved without the YouTube Data API. " +
-          "Please provide the channel URL with the channel ID (e.g., youtube.com/channel/UC...).";
-        setError(msg);
-        throw new Error(msg);
+        const apiKey = import.meta.env.VITE_YOUTUBE_API_KEY;
+        if (!apiKey) {
+          const msg =
+            "YouTube API key is missing. Cannot resolve handles or custom URLs. " +
+            "Please add VITE_YOUTUBE_API_KEY to your .env file or use a channel ID directly.";
+          setError(msg);
+          throw new Error(msg);
+        }
+
+        try {
+          setLoading(true);
+          let apiUrl = `https://www.googleapis.com/youtube/v3/channels?part=id&forHandle=@${parsed.handle}&key=${apiKey}`;
+          let res = await fetch(apiUrl);
+          let data = await res.json();
+
+          if (data.items && data.items.length > 0) {
+            channelId = data.items[0].id;
+          } else {
+            // Fallback for legacy custom URLs using search API
+            apiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${parsed.handle}&key=${apiKey}`;
+            res = await fetch(apiUrl);
+            data = await res.json();
+
+            if (data.items && data.items.length > 0) {
+              channelId = data.items[0].snippet.channelId;
+            } else {
+              const msg = "Could not find a YouTube channel matching that handle or URL.";
+              setError(msg);
+              throw new Error(msg);
+            }
+          }
+        } catch (err) {
+          const msg = err.message || "Failed to resolve channel via YouTube API.";
+          setError(msg);
+          throw new Error(msg);
+        }
       }
 
-      const channelId = parsed.channelId;
       const rssUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
 
       try {
