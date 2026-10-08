@@ -122,6 +122,3 @@ python worker.py                 # Single run
 
 4. **70-minute Lookback**: The RSS lookback window overlaps by 10 minutes to avoid missing videos between hourly cron runs.
 
-## License
-
-MIT
