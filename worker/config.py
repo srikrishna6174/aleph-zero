@@ -56,7 +56,7 @@ def get_appwrite_config() -> AppwriteConfig:
         endpoint=os.getenv("APPWRITE_ENDPOINT", "https://fra.cloud.appwrite.io/v1"),
         project_id=_require_env("APPWRITE_PROJECT_ID"),
         api_key=_require_env("APPWRITE_API_KEY"),
-        database_id=os.getenv("APPWRITE_DATABASE_ID", "yt_tracker_db"),
+        database_id=os.getenv("APPWRITE_DATABASE_ID", "6a9d0bb90033cb018bb0"),
         channels_collection_id=os.getenv("APPWRITE_CHANNELS_COLLECTION_ID", "channels"),
         subscriptions_collection_id=os.getenv("APPWRITE_SUBSCRIPTIONS_COLLECTION_ID", "subscriptions"),
         videos_collection_id=os.getenv("APPWRITE_VIDEOS_COLLECTION_ID", "videos"),

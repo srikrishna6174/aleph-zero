@@ -206,7 +206,7 @@ class AppwriteClient:
 
     def update_video_summary(self, document_id: str, summary: str) -> dict:
         """Update a video row with the AI-generated summary."""
-        row = self._db.update_row(
+        self._db.update_row(
             database_id=self._config.database_id,
             table_id=self._config.videos_collection_id,
             row_id=document_id,

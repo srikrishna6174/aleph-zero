@@ -79,7 +79,7 @@ export function useSummaries(subscribedChannelIds = []) {
         setLoading(false);
       }
     },
-    [user, channelIdsKey] // depends on serialized key, not array ref
+    [user] // relies on stableChannelIds.current for channel IDs
   );
 
   useEffect(() => {

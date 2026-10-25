@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)
 
 # ─── System Prompt ───────────────────────────────────────────────────────────
 
-SYSTEM_PROMPT = """You are an expert YouTube video summarizer. Your task is to produce a clear, well-structured summary of a video based on its transcript.
+SYSTEM_PROMPT = """You are an expert YouTube video summarizer. Your task is to produce a clear,
+well-structured summary of a video based on its transcript.
 
 ## Instructions
 
@@ -46,13 +47,15 @@ SYSTEM_PROMPT = """You are an expert YouTube video summarizer. Your task is to p
 6. **Length**: Keep the total summary between 200-500 words unless the content is exceptionally dense."""
 
 
-CHUNK_SUMMARY_PROMPT = """Summarize the following section of a video transcript. Focus on extracting the key points and arguments. This is part {chunk_num} of {total_chunks} of the full transcript.
+CHUNK_SUMMARY_PROMPT = """Summarize the following section of a video transcript. Focus on extracting the key points and arguments.
+This is part {chunk_num} of {total_chunks} of the full transcript.
 
 Transcript section:
 {chunk_text}"""
 
 
-FINAL_MERGE_PROMPT = """Below are summaries of different sections of the same video transcript. Combine them into a single, cohesive summary following the output format specified in your instructions.
+FINAL_MERGE_PROMPT = """Below are summaries of different sections of the same video transcript.
+Combine them into a single, cohesive summary following the output format specified in your instructions.
 
 Remove any duplicate points and ensure logical flow.
 
@@ -98,7 +101,6 @@ class Summarizer:
         max_retries: int = 5,
         retry_delay: int = 10,
     ) -> str:
-        """Summarize a transcript. Use summarize_from_metadata() when no transcript exists."""
         """
         Summarize a video transcript (provided as chunks).
 

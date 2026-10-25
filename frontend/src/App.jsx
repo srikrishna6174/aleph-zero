@@ -17,13 +17,13 @@ export default function App() {
           toastOptions={{
             duration: 4000,
             style: {
-              background: '#ffffff',
-              color: '#1e293b',
-              border: '1px solid #e2e8f0',
+              background: 'var(--color-surface-900)',
+              color: 'var(--color-surface-0)',
+              border: '1px solid var(--color-surface-800)',
               fontSize: '13.5px',
               fontWeight: '500',
               borderRadius: '12px',
-              boxShadow: '0 4px 16px rgba(15, 23, 42, 0.12), 0 1px 4px rgba(15, 23, 42, 0.08)',
+              boxShadow: '0 4px 16px rgba(0, 0, 0, 0.5), 0 1px 4px rgba(0, 0, 0, 0.2)',
             },
             success: {
               iconTheme: {

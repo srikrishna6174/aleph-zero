@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ExternalLink, Clock, User, Zap, RotateCcw, AlertTriangle, Loader2, Timer } from "lucide-react";
+import toast from "react-hot-toast";
 
 function formatRelativeTime(isoString) {
   if (!isoString) return "";
@@ -67,7 +68,6 @@ export default function SummaryCard({ video, channelName, index = 0, onRetry }) 
     if (retrying || !onRetry) return;
     setRetrying(true);
     try {
-      const { toast } = await import('react-hot-toast');
       await toast.promise(onRetry(video.$id ?? video.id), {
         loading: 'Re-queueing summary...',
         success: 'Successfully re-queued for processing!',

@@ -33,11 +33,6 @@ function useProvideAuth() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Check for existing session on mount
-  useEffect(() => {
-    checkSession();
-  }, []);
-
   const checkSession = useCallback(async () => {
     try {
       setLoading(true);
@@ -51,6 +46,11 @@ function useProvideAuth() {
       setLoading(false);
     }
   }, []);
+
+  // Check for existing session on mount
+  useEffect(() => {
+    checkSession();
+  }, [checkSession]);
 
   const login = useCallback(async (email, password) => {
     try {

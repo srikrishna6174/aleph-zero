@@ -131,6 +131,7 @@ export default function AuthForm({ mode = "login", onToggleMode }) {
                   onChange={(e) => setName(e.target.value)}
                   placeholder="John Doe"
                   className="input-light"
+                  required
                 />
               </div>
             )}

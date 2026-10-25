@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import { LayoutDashboard, Users, Library, Menu, X, LogOut, Sparkles, ChevronRight } from "lucide-react";
+import { LayoutDashboard, Users, Library, Menu, LogOut, Sparkles } from "lucide-react";
 
 export default function Layout({ children }) {
   const { user, logout } = useAuth();
