@@ -8,13 +8,6 @@ const YoutubeIcon = ({ className, style }) => (
   </svg>
 );
 
-const Tv2Icon = ({ className, style }) => (
-  <svg className={className} style={style} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M20 7H4a2 2 0 00-2 2v9a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z" />
-    <path strokeLinecap="round" strokeLinejoin="round" d="M16 3l-4 4-4-4" />
-  </svg>
-);
-
 export default function ChannelList({ channels, onRemoveChannel, loading }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [removingId, setRemovingId] = useState(null);
@@ -117,7 +110,10 @@ export default function ChannelList({ channels, onRemoveChannel, loading }) {
 
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-gray-100 truncate mb-1 tracking-wide">
-                      {channel.name || channel.channel_id}
+                      {channel.name && channel.name !== channel.channel_id
+                        ? channel.name
+                        : <span className="italic text-gray-400 font-normal">Unknown Channel</span>
+                      }
                     </p>
                     <p className="text-[10px] text-gray-500 truncate font-mono bg-black/20 inline-block px-1.5 py-0.5 rounded">
                       {channel.channel_id}

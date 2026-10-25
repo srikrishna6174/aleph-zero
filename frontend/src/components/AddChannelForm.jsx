@@ -120,6 +120,10 @@ export default function AddChannelForm({ onAddChannel, loading }) {
           </li>
           <li className="flex items-center gap-2">
             <div className="w-1.5 h-1.5 rounded-full bg-blue-400 shadow-[0_0_5px_rgba(96,165,250,0.5)]" />
+            youtube.com/customname
+          </li>
+          <li className="flex items-center gap-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-blue-400 shadow-[0_0_5px_rgba(96,165,250,0.5)]" />
             youtube.com/channel/UC...
           </li>
           <li className="flex items-center gap-2">

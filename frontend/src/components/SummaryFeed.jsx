@@ -11,6 +11,8 @@ export default function SummaryFeed({
   onRefresh,
   limit,
   onRetry,
+  showHeader = true,
+  title = "Latest Summaries",
 }) {
   const channelMap = {};
   for (const ch of channels) {
@@ -24,33 +26,35 @@ export default function SummaryFeed({
   return (
     <div className="space-y-6">
       {/* Feed header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div
-            className="w-8 h-8 rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(59,130,246,0.3)]"
-            style={{ background: 'linear-gradient(135deg, var(--color-accent-600), var(--color-indigo-600))' }}
-          >
-            <Zap className="w-4 h-4 text-white" />
+      {showHeader && (
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div
+              className="w-8 h-8 rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(59,130,246,0.3)]"
+              style={{ background: 'linear-gradient(135deg, var(--color-accent-600), var(--color-indigo-600))' }}
+            >
+              <Zap className="w-4 h-4 text-white" />
+            </div>
+            <h2 className="text-lg font-bold text-white tracking-wide">
+              {title}
+            </h2>
+            {summaries.length > 0 && (
+              <span className="badge badge-blue ml-2">
+                {summaries.length}
+              </span>
+            )}
           </div>
-          <h2 className="text-lg font-bold text-white tracking-wide">
-            Latest Summaries
-          </h2>
-          {summaries.length > 0 && (
-            <span className="badge badge-blue ml-2">
-              {summaries.length}
-            </span>
-          )}
+          <button
+            id="refresh-feed-btn"
+            onClick={onRefresh}
+            disabled={loading}
+            className="btn-secondary text-xs py-2 px-4 cursor-pointer disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            Refresh
+          </button>
         </div>
-        <button
-          id="refresh-feed-btn"
-          onClick={onRefresh}
-          disabled={loading}
-          className="btn-secondary text-xs py-2 px-4 cursor-pointer disabled:opacity-50"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-          Refresh
-        </button>
-      </div>
+      )}
 
       {/* Empty state */}
       {!loading && summaries.length === 0 && (

@@ -6,7 +6,7 @@ import { useSummaries } from "../hooks/useSummaries";
 import Layout from "../components/Layout";
 import StatsBar from "../components/StatsBar";
 import SummaryFeed from "../components/SummaryFeed";
-import { ArrowRight, Plus, Sparkles } from "lucide-react";
+import { ArrowRight, Plus, Sparkles, RefreshCw } from "lucide-react";
 
 export default function DashboardPage() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
@@ -21,7 +21,6 @@ export default function DashboardPage() {
   const {
     summaries,
     loading: summariesLoading,
-    hasMore,
     loadMore,
     refresh,
     retrySummary,
@@ -90,24 +89,35 @@ export default function DashboardPage() {
             <h2 className="text-xl font-bold text-white tracking-wide">Recent Activity</h2>
             <p className="text-sm mt-1 text-gray-400">Showing latest 5 processed videos</p>
           </div>
-          <Link
-            to="/library"
-            className="flex items-center gap-1.5 text-sm font-bold transition-colors text-blue-400 hover:text-blue-300"
-          >
-            View all
-            <ArrowRight className="w-4 h-4" />
-          </Link>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={refresh}
+              disabled={summariesLoading}
+              className="btn-secondary text-xs py-2 px-4 cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${summariesLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+            <Link
+              to="/library"
+              className="flex items-center gap-1.5 text-sm font-bold transition-colors text-blue-400 hover:text-blue-300"
+            >
+              View all
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
         </div>
 
         <SummaryFeed
           summaries={summaries}
           channels={channels}
           loading={summariesLoading}
-          hasMore={hasMore}
+          hasMore={false}
           onLoadMore={loadMore}
           onRefresh={refresh}
           limit={5}
           onRetry={retrySummary}
+          showHeader={false}
         />
       </div>
     </Layout>
@@ -120,3 +130,5 @@ function getGreeting() {
   if (hour < 17) return "Good afternoon";
   return "Good evening";
 }
+
+
