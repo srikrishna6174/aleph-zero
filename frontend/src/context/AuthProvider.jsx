@@ -102,8 +102,9 @@ export function AuthProvider({ children }) {
   const logout = useCallback(async () => {
     try {
       setSubmitting(true);
-      await account.deleteSession({ sessionId: "current" });
       setUser(null);
+      await new Promise((r) => setTimeout(r, 50));
+      await account.deleteSession({ sessionId: "current" });
     } catch (err) {
       console.error("Logout failed:", err);
       setUser(null);
