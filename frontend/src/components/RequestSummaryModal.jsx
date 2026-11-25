@@ -76,9 +76,13 @@ export default function RequestSummaryModal({ open, onClose }) {
   const [requestNotice, setRequestNotice] = useState("");
   const [previewExpandedId, setPreviewExpandedId] = useState(null);
 
-  // Initialize selected channel when modal opens
+  // Initialize / validate selected channel when modal opens or channels change
   useEffect(() => {
-    if (open && channels.length > 0 && !selectedChannelId) {
+    if (!open || channels.length === 0) return;
+    const exists = channels.some(
+      (ch) => (ch.channel_id ?? ch.data?.channel_id) === selectedChannelId,
+    );
+    if (!selectedChannelId || !exists) {
       const firstId = channels[0].channel_id ?? channels[0].data?.channel_id;
       if (firstId) setSelectedChannelId(firstId);
     }
@@ -130,13 +134,51 @@ export default function RequestSummaryModal({ open, onClose }) {
     };
   }, [open, tab, selectedChannelId, fetchChannelVideos]);
 
+  const liveStatusByVid = useMemo(() => {
+    const map = new Map();
+    for (const s of summaries) {
+      if (s?.video_id) map.set(s.video_id, s);
+    }
+    return map;
+  }, [summaries]);
+
+  const enrichedChannelVideos = useMemo(() => {
+    return channelVideos.map((v) => {
+      const live = liveStatusByVid.get(v.videoId);
+      return live
+        ? {
+            ...v,
+            docId: live.$id ?? live.id ?? v.docId,
+            status: live.status || v.status,
+            ai_summary: live.ai_summary || v.ai_summary || "",
+            error_message: live.error_message || v.error_message || "",
+          }
+        : v;
+    });
+  }, [channelVideos, liveStatusByVid]);
+
+  const enrichedCustomVideos = useMemo(() => {
+    return customVideos.map((v) => {
+      const live = liveStatusByVid.get(v.videoId);
+      return live
+        ? {
+            ...v,
+            docId: live.$id ?? live.id ?? v.docId,
+            status: live.status || v.status,
+            ai_summary: live.ai_summary || v.ai_summary || "",
+            error_message: live.error_message || v.error_message || "",
+          }
+        : v;
+    });
+  }, [customVideos, liveStatusByVid]);
+
   const filteredChannelVideos = useMemo(() => {
     const q = videoSearch.trim().toLowerCase();
-    if (!q) return channelVideos;
-    return channelVideos.filter((v) =>
+    if (!q) return enrichedChannelVideos;
+    return enrichedChannelVideos.filter((v) =>
       (v.title || "").toLowerCase().includes(q),
     );
-  }, [channelVideos, videoSearch]);
+  }, [enrichedChannelVideos, videoSearch]);
 
   const selectedList = useMemo(() => Object.values(selectedMap), [selectedMap]);
 
@@ -216,7 +258,18 @@ export default function RequestSummaryModal({ open, onClose }) {
       const res = await requestVideoSummaries(selectedList);
       setRequestedIds(res.videoIds || selectedList.map((v) => v.videoId));
       if (res.mode === "instant") {
-        toast.success("Summaries generated!");
+        const results = res.results || [];
+        const okCount = results.filter((r) => r.status === "completed").length;
+        const failedCount = results.filter((r) => r.status === "failed").length;
+        if (failedCount > 0 && okCount === 0) {
+          toast.error(results[0]?.error || "Summary generation failed.");
+        } else if (failedCount > 0) {
+          toast.success(
+            `Generated ${okCount} summary(ies); ${failedCount} failed.`,
+          );
+        } else {
+          toast.success("Summaries generated!");
+        }
       } else if (res.mode === "worker") {
         toast.success("Generating summaries now — watching live progress!");
       } else if (res.message) {
@@ -494,14 +547,20 @@ export default function RequestSummaryModal({ open, onClose }) {
                             const checked = !!selectedMap[video.videoId];
                             const chip = getVideoStatusChip(video.status);
                             return (
-                              <button
+                              <div
                                 key={video.videoId}
-                                type="button"
                                 role="checkbox"
+                                tabIndex={0}
                                 aria-checked={checked}
                                 data-video-id={video.videoId}
                                 onClick={() => toggleVideo(video)}
-                                className={`w-full text-left flex items-center gap-3.5 p-3 rounded-xl border transition-all cursor-pointer ${
+                                onKeyDown={(e) => {
+                                  if (e.key === " " || e.key === "Enter") {
+                                    e.preventDefault();
+                                    toggleVideo(video);
+                                  }
+                                }}
+                                className={`w-full text-left flex items-center gap-3.5 p-3 rounded-xl border transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
                                   checked
                                     ? "bg-blue-500/12 border-blue-500/40 shadow-[0_0_0_1px_rgba(59,130,246,0.2)]"
                                     : "bg-white/[0.025] border-white/[0.06] hover:bg-white/[0.05] hover:border-white/[0.12]"
@@ -555,10 +614,11 @@ export default function RequestSummaryModal({ open, onClose }) {
                                   onClick={(e) => e.stopPropagation()}
                                   className="p-1.5 rounded-lg text-zinc-500 hover:text-blue-400 shrink-0"
                                   title="Open on YouTube"
+                                  aria-label={`Open ${video.title} on YouTube`}
                                 >
                                   <ExternalLink className="w-3.5 h-3.5" />
                                 </a>
-                              </button>
+                              </div>
                             );
                           })}
                         </div>
@@ -603,25 +663,34 @@ export default function RequestSummaryModal({ open, onClose }) {
                     </div>
                   )}
 
-                  {customVideos.length === 0 ? (
+                  {enrichedCustomVideos.length === 0 ? (
                     <div className="text-center py-10 text-xs text-zinc-400 bg-white/[0.02] rounded-xl border border-white/[0.06]">
                       Paste any YouTube video, livestream, or Shorts link above to
                       inspect and request an instant AI summary.
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      {customVideos.map((video) => {
+                      {enrichedCustomVideos.map((video) => {
                         const checked = !!selectedMap[video.videoId];
                         const chip = getVideoStatusChip(video.status);
                         return (
-                          <button
+                          <div
                             key={video.videoId}
-                            type="button"
+                            role="checkbox"
+                            tabIndex={0}
+                            aria-checked={checked}
+                            data-video-id={video.videoId}
                             onClick={() => toggleVideo(video)}
-                            className={`w-full text-left flex items-center gap-3.5 p-3 rounded-xl border transition-all cursor-pointer ${
+                            onKeyDown={(e) => {
+                              if (e.key === " " || e.key === "Enter") {
+                                e.preventDefault();
+                                toggleVideo(video);
+                              }
+                            }}
+                            className={`w-full text-left flex items-center gap-3.5 p-3 rounded-xl border transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
                               checked
                                 ? "bg-blue-500/12 border-blue-500/40"
-                                : "bg-white/[0.025] border-white/[0.06]"
+                                : "bg-white/[0.025] border-white/[0.06] hover:bg-white/[0.05]"
                             }`}
                           >
                             <span
@@ -652,7 +721,18 @@ export default function RequestSummaryModal({ open, onClose }) {
                                 </span>
                               </div>
                             </div>
-                          </button>
+                            <a
+                              href={`https://www.youtube.com/watch?v=${video.videoId}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="p-1.5 rounded-lg text-zinc-500 hover:text-blue-400 shrink-0"
+                              title="Open on YouTube"
+                              aria-label={`Open ${video.title} on YouTube`}
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
+                          </div>
                         );
                       })}
                     </div>

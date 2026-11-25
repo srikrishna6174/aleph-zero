@@ -24,17 +24,17 @@ FALLBACK_MODELS = [
     "gemini-3.6-flash",
     "gemini-flash-lite-latest",
     "gemini-3.5-flash-lite",
-    "gemini-4-hydrogen",
-    "gemini-3.1-flash-lite",
-    "gemini-3.1-flash-lite-preview",
     "gemini-3-flash-preview",
     "gemini-3.5-flash",
-    "gemini-3.8-flash",
     "gemini-3.7-flash",
+    "gemini-3.8-flash",
+    "gemini-3.1-flash-lite",
     "gemini-flash-latest",
     "gemini-3.1-pro-preview",
-    "gemma-4-31b-it",
+    "gemini-4-hydrogen",
     "gemma-4-26b-a4b-it",
+    "gemma-4-31b-it",
+    "gemini-3.1-flash-lite-preview",
 ]
 
 
@@ -168,7 +168,10 @@ class Summarizer:
 
     def __init__(self, config: GeminiConfig):
         self._config = config
-        self._client = genai.Client(api_key=config.api_key)
+        self._client = genai.Client(
+            api_key=config.api_key,
+            http_options=types.HttpOptions(timeout=20000),
+        )
         self._model = config.model
         self._max_output_tokens = config.max_output_tokens
         self._unavailable_models: set[str] = set()

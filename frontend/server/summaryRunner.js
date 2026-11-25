@@ -21,15 +21,17 @@ const FALLBACK_MODELS = [
   "gemini-3.6-flash",
   "gemini-flash-lite-latest",
   "gemini-3.5-flash-lite",
-  "gemini-4-hydrogen",
-  "gemini-3.1-flash-lite",
-  "gemini-3.1-flash-lite-preview",
   "gemini-3-flash-preview",
   "gemini-3.5-flash",
-  "gemini-3.8-flash",
   "gemini-3.7-flash",
-  "gemma-4-31b-it",
+  "gemini-3.8-flash",
+  "gemini-3.1-flash-lite",
+  "gemini-flash-latest",
+  "gemini-3.1-pro-preview",
+  "gemini-4-hydrogen",
   "gemma-4-26b-a4b-it",
+  "gemma-4-31b-it",
+  "gemini-3.1-flash-lite-preview",
 ];
 
 function compactPromptForLimit(prompt, maxChars = 34000) {
@@ -103,49 +105,90 @@ function extractJsonArrayAfter(text, marker) {
   return null;
 }
 
-async function getCaptionTracksViaInnertube(videoId) {
-  try {
-    const res = await fetch(
-      "https://www.youtube.com/youtubei/v1/player?prettyPrint=false",
-      {
+const INNERTUBE_CLIENTS = [
+  {
+    userAgent:
+      "com.google.android.youtube/20.10.38 (Linux; U; Android 14) gzip",
+    context: {
+      client: {
+        clientName: "ANDROID",
+        clientVersion: "20.10.38",
+      },
+    },
+  },
+  {
+    userAgent:
+      "com.google.ios.youtube/20.10.4 (iPhone16,2; U; CPU iOS 18_3_1 like Mac OS X;)",
+    context: {
+      client: {
+        clientName: "IOS",
+        clientVersion: "20.10.4",
+        deviceMake: "Apple",
+        deviceModel: "iPhone16,2",
+        osName: "iOS",
+        osVersion: "18.3.1",
+      },
+    },
+  },
+];
+
+async function getCaptionTracksViaInnertube(videoId, apiKey = "") {
+  const endpoint = apiKey
+    ? `https://www.youtube.com/youtubei/v1/player?key=${encodeURIComponent(apiKey)}&prettyPrint=false`
+    : "https://www.youtube.com/youtubei/v1/player?prettyPrint=false";
+
+  for (const clientSpec of INNERTUBE_CLIENTS) {
+    try {
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "User-Agent":
-            "com.google.android.youtube/20.10.38 (Linux; U; Android 14) gzip",
+          "User-Agent": clientSpec.userAgent,
         },
-        signal: AbortSignal.timeout(8000),
+        signal: AbortSignal.timeout(7000),
         body: JSON.stringify({
-          context: {
-            client: {
-              clientName: "ANDROID",
-              clientVersion: "20.10.38",
-            },
-          },
+          context: clientSpec.context,
           videoId,
         }),
-      },
-    );
-    if (!res.ok) return null;
-    const data = await res.json().catch(() => null);
-    const tracks = data?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
-    return Array.isArray(tracks) && tracks.length > 0 ? tracks : null;
-  } catch {
-    return null;
+      });
+      if (!res.ok) continue;
+      const data = await res.json().catch(() => null);
+      const tracks =
+        data?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+      if (Array.isArray(tracks) && tracks.length > 0) {
+        return { tracks, userAgent: clientSpec.userAgent };
+      }
+    } catch {
+      // try next client
+    }
   }
+  return null;
 }
 
 async function fetchTranscriptFromWatch(videoId) {
   try {
-    let tracks = await getCaptionTracksViaInnertube(videoId);
+    let resolved = await getCaptionTracksViaInnertube(videoId);
+    let tracks = resolved?.tracks || null;
+    let subUserAgent = resolved?.userAgent || YT_HEADERS["User-Agent"];
+
     if (!tracks) {
       const res = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
         headers: YT_HEADERS,
-        signal: AbortSignal.timeout(8000),
+        signal: AbortSignal.timeout(7000),
       });
       if (!res.ok) return null;
       const html = await res.text();
       tracks = extractJsonArrayAfter(html, '"captionTracks":');
+      subUserAgent = YT_HEADERS["User-Agent"];
+
+      if (!tracks) {
+        const apiKeyMatch = html.match(/"INNERTUBE_API_KEY":\s*"([a-zA-Z0-9_-]+)"/);
+        if (apiKeyMatch?.[1]) {
+          resolved = await getCaptionTracksViaInnertube(videoId, apiKeyMatch[1]);
+          tracks = resolved?.tracks || null;
+          if (resolved?.userAgent) subUserAgent = resolved.userAgent;
+        }
+      }
     }
     if (!Array.isArray(tracks) || tracks.length === 0) return null;
 
@@ -157,13 +200,17 @@ async function fetchTranscriptFromWatch(videoId) {
     if (!preferred?.baseUrl) return null;
 
     let body = "";
+    const subHeaders = {
+      "User-Agent": subUserAgent,
+      "Accept-Language": "en-US,en;q=0.9",
+    };
     for (const candidateUrl of [
       `${preferred.baseUrl}&fmt=json3`,
       preferred.baseUrl,
     ]) {
       const subRes = await fetch(candidateUrl, {
-        headers: YT_HEADERS,
-        signal: AbortSignal.timeout(8000),
+        headers: subHeaders,
+        signal: AbortSignal.timeout(7000),
       }).catch(() => null);
       if (subRes && subRes.ok) {
         const text = await subRes.text();
@@ -257,7 +304,7 @@ async function callGeminiWithFallback(geminiKey, prompt, configuredModel) {
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              signal: AbortSignal.timeout(12000),
+              signal: AbortSignal.timeout(9000),
               body: JSON.stringify(requestBody),
             },
           );
@@ -283,14 +330,16 @@ async function callGeminiWithFallback(geminiKey, prompt, configuredModel) {
             break; // skip exhausted/deprecated model for remaining passes
           }
           if (status >= 500 && attempt < 2) {
-            await new Promise((r) => setTimeout(r, 1500));
+            await new Promise((r) => setTimeout(r, 1000));
             continue;
           }
           break;
         } catch (err) {
           lastError = err?.message || String(err);
-          if (attempt < 2) {
-            await new Promise((r) => setTimeout(r, 1500));
+          const isTimeout =
+            err?.name === "TimeoutError" || err?.name === "AbortError";
+          if (!isTimeout && attempt < 2) {
+            await new Promise((r) => setTimeout(r, 1000));
             continue;
           }
           break;
@@ -343,25 +392,16 @@ export async function summarizeVideosInNode({
   apiKey = "",
   jwt = "",
 }) {
-  const results = [];
+  const startedAt = Date.now();
+  const MAX_BUDGET_MS = 48000;
 
-  for (const rawVideo of videos) {
+  async function processSingleVideo(rawVideo) {
     let video = { ...rawVideo };
     const videoId = video.videoId || video.video_id;
-    if (!videoId) continue;
-
-    if (!video.title || !video.channelId) {
-      try {
-        const inspected = await inspectVideoUrl(videoId);
-        video = { ...inspected, ...video, videoId };
-      } catch {
-        // continue with provided metadata
-      }
-    }
+    if (!videoId) return null;
 
     let docId = video.docId || video.$id || "";
 
-    // Find existing row by video_id if docId wasn't passed
     if (!docId) {
       try {
         const q = encodeURIComponent(
@@ -384,6 +424,14 @@ export async function summarizeVideosInNode({
       }
     }
 
+    if (Date.now() - startedAt > MAX_BUDGET_MS) {
+      return {
+        videoId,
+        docId,
+        status: "pending",
+      };
+    }
+
     try {
       if (docId) {
         await appwriteRequest({
@@ -398,6 +446,21 @@ export async function summarizeVideosInNode({
       }
 
       const transcript = await fetchTranscriptFromWatch(videoId);
+      if (!transcript && (!video.description || !video.title)) {
+        try {
+          const inspected = await inspectVideoUrl(videoId);
+          video = {
+            ...inspected,
+            ...video,
+            videoId,
+            title: video.title || inspected.title,
+            description: video.description || inspected.description || "",
+          };
+        } catch {
+          // continue with available metadata
+        }
+      }
+
       let prompt;
       if (transcript) {
         prompt = `Video Title: "${video.title || videoId}"\n\nTranscript:\n${transcript.slice(0, 150000)}`;
@@ -429,12 +492,12 @@ export async function summarizeVideosInNode({
         });
       }
 
-      results.push({
+      return {
         videoId,
         docId,
         status: "completed",
         ai_summary: summary,
-      });
+      };
     } catch (err) {
       const errorMessage = (err?.message || "Failed to summarize").slice(
         0,
@@ -456,7 +519,17 @@ export async function summarizeVideosInNode({
           },
         }).catch(() => {});
       }
-      results.push({ videoId, docId, status: "failed", error: errorMessage });
+      return { videoId, docId, status: "failed", error: errorMessage };
+    }
+  }
+
+  const results = [];
+  const CONCURRENCY = 3;
+  for (let i = 0; i < videos.length; i += CONCURRENCY) {
+    const batch = videos.slice(i, i + CONCURRENCY);
+    const batchResults = await Promise.all(batch.map(processSingleVideo));
+    for (const res of batchResults) {
+      if (res) results.push(res);
     }
   }
 

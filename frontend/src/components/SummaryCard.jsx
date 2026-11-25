@@ -167,6 +167,7 @@ export default function SummaryCard({
               type="button"
               onClick={() => onToggleSelect(video)}
               aria-label={`Select ${title}`}
+              aria-pressed={selected}
               className={`w-5 h-5 rounded-md flex items-center justify-center border cursor-pointer transition-colors ${
                 selected
                   ? "bg-blue-600 border-blue-500 text-white"

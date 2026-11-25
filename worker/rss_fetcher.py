@@ -5,6 +5,8 @@ Parses YouTube channel RSS feeds and filters for recently published videos.
 Automatically skips YouTube Shorts — only processes regular videos and live streams.
 """
 
+import html as html_lib
+import json
 import logging
 import re
 from datetime import datetime, timezone, timedelta
@@ -146,19 +148,17 @@ def fetch_video_metadata_from_watch(video_id: str) -> tuple[str, str]:
             timeout=10,
         )
         if resp.ok:
-            html = resp.text
+            page_html = resp.text
             m_title = re.search(
-                r'<meta name="title" content="([^"]+)"', html
-            ) or re.search(r'<meta property="og:title" content="([^"]+)"', html)
+                r'<meta name="title" content="([^"]+)"', page_html
+            ) or re.search(r'<meta property="og:title" content="([^"]+)"', page_html)
             if m_title:
-                title = m_title.group(1).strip()
+                title = html_lib.unescape(m_title.group(1).strip())
 
             m_desc = re.search(
-                r'"shortDescription":"((?:[^"\\]|\\.)*)"', html
+                r'"shortDescription":"((?:[^"\\]|\\.)*)"', page_html
             )
             if m_desc:
-                # Decode JSON-escaped string
-                import json
                 try:
                     description = json.loads(f'"{m_desc.group(1)}"')
                 except Exception:

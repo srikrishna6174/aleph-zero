@@ -972,7 +972,7 @@ export function TrackerProvider({ children }) {
       }
 
       const preparedVideos = [];
-      const channelsToSubscribe = new Set();
+      let needsChannelRefresh = false;
 
       for (const item of selectedVideos) {
         const videoId = item.videoId || item.video_id;
@@ -980,10 +980,7 @@ export function TrackerProvider({ children }) {
 
         const channelId = item.channelId || item.channel_id || "";
         if (channelId && !stableChannelIdsRef.current.includes(channelId)) {
-          channelsToSubscribe.add({
-            channelId,
-            name: item.channelName || channelId,
-          });
+          needsChannelRefresh = true;
         }
 
         // Ensure channel exists if user pasted a video from a new channel
@@ -994,6 +991,13 @@ export function TrackerProvider({ children }) {
               tableId: CHANNELS_TABLE_ID,
               queries: [Query.equal("channel_id", [channelId]), Query.limit(1)],
             });
+            let resolvedThumb = item.channelThumbnailUrl || "";
+            if (!chCheck.rows?.length || !chCheck.rows[0]?.thumbnail_url) {
+              if (!resolvedThumb) {
+                const resolved = await resolveViaLocalEndpoint(channelId);
+                if (resolved?.thumbnailUrl) resolvedThumb = resolved.thumbnailUrl;
+              }
+            }
             if (!chCheck.rows?.length) {
               await tablesDB.createRow({
                 databaseId: DATABASE_ID,
@@ -1003,8 +1007,16 @@ export function TrackerProvider({ children }) {
                   channel_id: channelId,
                   name: item.channelName || channelId,
                   rss_url: `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`,
-                  thumbnail_url: "",
+                  thumbnail_url: resolvedThumb || "",
                 },
+              });
+            } else if (resolvedThumb && !chCheck.rows[0]?.thumbnail_url) {
+              const cidDoc = chCheck.rows[0].$id ?? chCheck.rows[0].id;
+              await tablesDB.updateRow({
+                databaseId: DATABASE_ID,
+                tableId: CHANNELS_TABLE_ID,
+                rowId: cidDoc,
+                data: { thumbnail_url: resolvedThumb },
               });
             }
             const subCheck = await tablesDB.listRows({
@@ -1109,7 +1121,7 @@ export function TrackerProvider({ children }) {
         }
       }
 
-      if (channelsToSubscribe.size > 0) {
+      if (needsChannelRefresh) {
         await fetchChannels();
       }
       fetchStats(stableChannelIdsRef.current);
@@ -1126,6 +1138,8 @@ export function TrackerProvider({ children }) {
       setSyncRunning(true);
       const videoIds = preparedVideos.map((v) => v.videoId);
       let apiResult = { mode: "queued" };
+      let apiOk = true;
+      let apiErrorMsg = "";
 
       try {
         const apiRes = await fetch("/api/request-summary", {
@@ -1133,17 +1147,79 @@ export function TrackerProvider({ children }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ videos: preparedVideos, jwt }),
         });
+        apiOk = apiRes.ok;
         const ct = apiRes.headers.get("content-type") || "";
         if (ct.includes("application/json")) {
-          apiResult = await apiRes.json();
+          const parsed = await apiRes.json();
+          if (apiRes.ok) {
+            apiResult = parsed;
+          } else {
+            apiErrorMsg = parsed?.error || `HTTP ${apiRes.status}`;
+          }
+        } else if (!apiRes.ok) {
+          apiErrorMsg = `HTTP ${apiRes.status}`;
         }
-      } catch {
-        // Fallback to queued state if offline
+      } catch (fetchErr) {
+        apiOk = false;
+        apiErrorMsg = fetchErr?.message || "Network error";
+      }
+
+      if (!apiOk) {
+        setSyncRunning(false);
+        throw new Error(apiErrorMsg || "Could not start summary generation.");
       }
 
       if (apiResult.mode === "instant") {
+        // Apply immediate results into state so even older videos outside top-25 update immediately
+        const resultsByVid = new Map(
+          (apiResult.results || []).map((r) => [r.videoId, r]),
+        );
+        setSummaries((prev) => {
+          const next = prev.map((s) => {
+            const res = resultsByVid.get(s.video_id);
+            if (!res) return s;
+            return {
+              ...s,
+              status: res.status,
+              ai_summary: res.ai_summary ?? s.ai_summary,
+              error_message: res.error || "",
+            };
+          });
+          return next;
+        });
+        // Preserve any updated requested items not included in top-25 page
         await fetchSummaries(true);
-        setSyncRunning(false);
+        if (resultsByVid.size > 0) {
+          setSummaries((prev) => {
+            const existingVids = new Set(prev.map((s) => s.video_id));
+            const extras = [];
+            for (const item of preparedVideos) {
+              if (!existingVids.has(item.videoId)) {
+                const res = resultsByVid.get(item.videoId);
+                extras.push({
+                  $id: item.docId || res?.docId || item.videoId,
+                  video_id: item.videoId,
+                  channel_id: item.channelId || "unknown",
+                  title: item.title,
+                  published_at: item.publishedAt,
+                  thumbnail_url: item.thumbnailUrl,
+                  status: res?.status || "completed",
+                  ai_summary: res?.ai_summary || "",
+                  error_message: res?.error || "",
+                });
+              }
+            }
+            return extras.length > 0 ? [...prev, ...extras] : prev;
+          });
+        }
+        const hasPending = (apiResult.results || []).some(
+          (r) => r.status === "pending" || r.status === "processing",
+        );
+        if (hasPending) {
+          watchVideosUntilSettled(videoIds);
+        } else {
+          setSyncRunning(false);
+        }
       } else if (apiResult.mode === "worker") {
         watchVideosUntilSettled(videoIds);
       } else {
@@ -1223,9 +1299,30 @@ export function TrackerProvider({ children }) {
               jwt,
             }),
           })
-            .then((r) => r.json().catch(() => ({})))
+            .then(async (r) => {
+              const data = await r.json().catch(() => ({}));
+              if (!r.ok) {
+                throw new Error(data?.error || `HTTP ${r.status}`);
+              }
+              return data;
+            })
             .then((resData) => {
               if (resData?.mode === "instant") {
+                const res = (resData.results || [])[0];
+                if (res) {
+                  setSummaries((prev) =>
+                    prev.map((s) =>
+                      (s.$id ?? s.id) === documentId
+                        ? {
+                            ...s,
+                            status: res.status,
+                            ai_summary: res.ai_summary ?? s.ai_summary,
+                            error_message: res.error || "",
+                          }
+                        : s,
+                    ),
+                  );
+                }
                 fetchSummaries(true);
               } else if (resData?.mode === "worker") {
                 setSyncRunning(true);
@@ -1234,7 +1331,9 @@ export function TrackerProvider({ children }) {
                 watchVideosUntilSettled([target.video_id]);
               }
             })
-            .catch(() => {});
+            .catch(() => {
+              fetchSummaries(true);
+            });
         } else if (localSyncSupported) {
           syncNow();
         }

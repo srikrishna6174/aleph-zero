@@ -183,9 +183,22 @@ export default function LibraryPage() {
       setRequestingSelected(true);
       const res = await requestVideoSummaries(selectedVideos);
       if (res?.mode === "instant") {
-        toast.success(
-          `Generated summary for ${selectedVideos.length} selected video(s).`,
-        );
+        const results = res.results || [];
+        const failedCount = results.filter((r) => r.status === "failed").length;
+        const okCount = results.filter((r) => r.status === "completed").length;
+        if (failedCount > 0 && okCount === 0) {
+          toast.error(
+            results[0]?.error || `Failed to generate summary for ${failedCount} video(s).`,
+          );
+        } else if (failedCount > 0) {
+          toast.success(
+            `Generated ${okCount} summary(ies); ${failedCount} failed.`,
+          );
+        } else {
+          toast.success(
+            `Generated summary for ${okCount || selectedVideos.length} selected video(s).`,
+          );
+        }
       } else if (res?.mode === "worker") {
         toast.success(
           `Started immediate summarization for ${selectedVideos.length} selected video(s).`,

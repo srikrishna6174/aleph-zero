@@ -53,7 +53,7 @@ export default function StatsBar({
       ),
       iconBg: "linear-gradient(135deg, #3b82f6, #0ea5e9)",
       iconColor: "#fff",
-      trend: totalVideos > 0 ? "Across tracked channels" : "Add channels to start",
+      trend: totalVideos > 0 ? "All tracked channels" : "Add channels to start",
     },
     {
       label: "AI Summaries",
@@ -108,18 +108,18 @@ export default function StatsBar({
   ];
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
       {cards.map((stat, i) => (
         <div
           key={stat.label}
-          className="glass-card p-5 animate-fade-in-up relative overflow-hidden group"
+          className="glass-card p-3.5 sm:p-5 animate-fade-in-up relative overflow-hidden group"
           style={{ animationDelay: `${i * 0.05}s` }}
         >
           <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-white/[0.04] rounded-full blur-2xl group-hover:bg-white/[0.08] transition-colors" />
 
-          <div className="flex items-start gap-3.5 relative z-10">
+          <div className="flex items-start gap-2.5 sm:gap-3.5 relative z-10">
             <div
-              className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 shadow-lg"
+              className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0 shadow-lg"
               style={{ background: stat.iconBg, color: stat.iconColor }}
             >
               {stat.icon}
@@ -133,7 +133,7 @@ export default function StatsBar({
               </p>
             </div>
           </div>
-          <p className="text-[11px] mt-3.5 font-medium text-zinc-500 truncate relative z-10">
+          <p className="text-[11px] mt-3 sm:mt-3.5 font-medium text-zinc-500 leading-snug relative z-10">
             {stat.trend}
           </p>
         </div>

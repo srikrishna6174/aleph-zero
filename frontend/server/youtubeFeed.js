@@ -174,6 +174,15 @@ export async function inspectVideoUrl(videoInput) {
     }
   }
 
+  let channelThumbnailUrl = "";
+  if (html) {
+    channelThumbnailUrl =
+      html.match(/"videoOwnerRenderer":\{"thumbnail":\{"thumbnails":\[\{"url":"([^"]+)"/)?.[1] ||
+      html.match(/"ownerProfileUrl"[^}]*"thumbnails":\[\{"url":"([^"]+)"/)?.[1] ||
+      html.match(/"avatar":\{"thumbnails":\[\{"url":"([^"]+)"/)?.[1] ||
+      "";
+  }
+
   let description = (innertube?.shortDescription || "").slice(0, 3000);
   if (!description && html) {
     const descRaw = html.match(/"shortDescription":"((?:[^"\\]|\\.)*)"/)?.[1];
@@ -195,6 +204,7 @@ export async function inspectVideoUrl(videoInput) {
     videoId,
     channelId,
     channelName: channelName || channelId,
+    channelThumbnailUrl,
     title,
     publishedAt: publishedAt.includes("T")
       ? publishedAt
