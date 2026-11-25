@@ -298,6 +298,7 @@ export default function RequestSummaryModal({ open, onClose }) {
                     <img
                       src={row.thumbnailUrl}
                       alt={row.title}
+                      referrerPolicy="no-referrer"
                       className="w-24 aspect-video rounded-lg object-cover shrink-0 border border-white/10"
                     />
                     <div className="flex-1 min-w-0">
@@ -519,6 +520,7 @@ export default function RequestSummaryModal({ open, onClose }) {
                                 <img
                                   src={video.thumbnailUrl}
                                   alt={video.title}
+                                  referrerPolicy="no-referrer"
                                   className="w-24 aspect-video rounded-lg object-cover shrink-0 border border-white/10"
                                   loading="lazy"
                                 />
@@ -634,6 +636,7 @@ export default function RequestSummaryModal({ open, onClose }) {
                             <img
                               src={video.thumbnailUrl}
                               alt={video.title}
+                              referrerPolicy="no-referrer"
                               className="w-24 aspect-video rounded-lg object-cover shrink-0"
                             />
                             <div className="flex-1 min-w-0">
