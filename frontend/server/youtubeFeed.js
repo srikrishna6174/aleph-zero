@@ -82,6 +82,48 @@ export async function fetchChannelFeedVideos(channelId) {
     .filter((v) => Boolean(v.videoId));
 }
 
+async function fetchInnertubeVideoMeta(videoId) {
+  try {
+    const res = await fetch(
+      "https://www.youtube.com/youtubei/v1/player?prettyPrint=false",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "User-Agent":
+            "com.google.android.youtube/20.10.38 (Linux; U; Android 14) gzip",
+        },
+        signal: AbortSignal.timeout(8000),
+        body: JSON.stringify({
+          context: {
+            client: { clientName: "ANDROID", clientVersion: "20.10.38" },
+          },
+          videoId,
+        }),
+      },
+    );
+    if (!res.ok) return null;
+    const data = await res.json().catch(() => null);
+    return data?.videoDetails || null;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchOembedVideoMeta(videoId) {
+  try {
+    const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${videoId}`)}&format=json`;
+    const res = await fetch(oembedUrl, {
+      headers: YT_HEADERS,
+      signal: AbortSignal.timeout(6000),
+    });
+    if (!res.ok) return null;
+    return await res.json().catch(() => null);
+  } catch {
+    return null;
+  }
+}
+
 export async function inspectVideoUrl(videoInput) {
   const videoId = extractVideoId(videoInput);
   if (!videoId) {
@@ -89,43 +131,58 @@ export async function inspectVideoUrl(videoInput) {
   }
 
   const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
-  const res = await fetch(watchUrl, { headers: YT_HEADERS, redirect: "follow" });
-  if (!res.ok) {
-    throw new Error(`YouTube returned HTTP ${res.status} for that video.`);
+  const [watchRes, innertube, oembed] = await Promise.all([
+    fetch(watchUrl, { headers: YT_HEADERS, redirect: "follow", signal: AbortSignal.timeout(8000) }).catch(() => null),
+    fetchInnertubeVideoMeta(videoId),
+    fetchOembedVideoMeta(videoId),
+  ]);
+
+  if ((!watchRes || !watchRes.ok) && !innertube && !oembed) {
+    throw new Error(
+      `YouTube returned HTTP ${watchRes?.status || "error"} for that video.`,
+    );
   }
 
-  const html = await res.text();
+  const html = watchRes && watchRes.ok ? await watchRes.text() : "";
   const channelId =
+    innertube?.channelId ||
     html.match(/"(?:externalId|channelId|browseId)":"(UC[\w-]{22})"/)?.[1] ||
     html.match(/youtube\.com\/channel\/(UC[\w-]{22})/)?.[1] ||
     "";
 
-  let title =
+  const title =
+    innertube?.title ||
+    oembed?.title ||
     decodeXmlEntities(
       html.match(/<meta name="title" content="([^"]+)"/)?.[1] ||
         html.match(/<meta property="og:title" content="([^"]+)"/)?.[1] ||
         "",
-    ) || `Video ${videoId}`;
+    ) ||
+    `Video ${videoId}`;
 
-  let channelName = "";
-  const ownerRaw =
-    html.match(/"ownerChannelName":"((?:[^"\\]|\\.)+)"/)?.[1] ||
-    html.match(/"author":"((?:[^"\\]|\\.)+)"/)?.[1];
-  if (ownerRaw) {
-    try {
-      channelName = JSON.parse(`"${ownerRaw}"`);
-    } catch {
-      channelName = ownerRaw;
+  let channelName = innertube?.author || oembed?.author_name || "";
+  if (!channelName && html) {
+    const ownerRaw =
+      html.match(/"ownerChannelName":"((?:[^"\\]|\\.)+)"/)?.[1] ||
+      html.match(/"author":"((?:[^"\\]|\\.)+)"/)?.[1];
+    if (ownerRaw) {
+      try {
+        channelName = JSON.parse(`"${ownerRaw}"`);
+      } catch {
+        channelName = ownerRaw;
+      }
     }
   }
 
-  let description = "";
-  const descRaw = html.match(/"shortDescription":"((?:[^"\\]|\\.)*)"/)?.[1];
-  if (descRaw) {
-    try {
-      description = JSON.parse(`"${descRaw}"`).slice(0, 3000);
-    } catch {
-      description = descRaw.slice(0, 3000);
+  let description = (innertube?.shortDescription || "").slice(0, 3000);
+  if (!description && html) {
+    const descRaw = html.match(/"shortDescription":"((?:[^"\\]|\\.)*)"/)?.[1];
+    if (descRaw) {
+      try {
+        description = JSON.parse(`"${descRaw}"`).slice(0, 3000);
+      } catch {
+        description = descRaw.slice(0, 3000);
+      }
     }
   }
 

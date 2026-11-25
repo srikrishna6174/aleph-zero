@@ -111,7 +111,8 @@ async function getCaptionTracksViaInnertube(videoId) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "User-Agent": YT_HEADERS["User-Agent"],
+          "User-Agent":
+            "com.google.android.youtube/20.10.38 (Linux; U; Android 14) gzip",
         },
         signal: AbortSignal.timeout(8000),
         body: JSON.stringify({
@@ -155,11 +156,25 @@ async function fetchTranscriptFromWatch(videoId) {
 
     if (!preferred?.baseUrl) return null;
 
-    const subUrl = `${preferred.baseUrl}&fmt=json3`;
-    const subRes = await fetch(subUrl, { headers: YT_HEADERS });
-    if (!subRes.ok) return null;
+    let body = "";
+    for (const candidateUrl of [
+      `${preferred.baseUrl}&fmt=json3`,
+      preferred.baseUrl,
+    ]) {
+      const subRes = await fetch(candidateUrl, {
+        headers: YT_HEADERS,
+        signal: AbortSignal.timeout(8000),
+      }).catch(() => null);
+      if (subRes && subRes.ok) {
+        const text = await subRes.text();
+        if (text && text.trim()) {
+          body = text;
+          break;
+        }
+      }
+    }
+    if (!body) return null;
 
-    const body = await subRes.text();
     if (body.trim().startsWith("{")) {
       const json3 = JSON.parse(body);
       const segments = [];
@@ -177,9 +192,15 @@ async function fetchTranscriptFromWatch(videoId) {
       return joined || null;
     }
 
-    // XML transcript fallback
-    const xmlTexts = Array.from(body.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/g))
-      .map((m) => decodeHtml(m[1]).replace(/\s+/g, " ").trim())
+    // XML (<text> and timedtext3 <p>) transcript fallback
+    const xmlTexts = Array.from(
+      body.matchAll(/<(?:text|p)[^>]*>([\s\S]*?)<\/(?:text|p)>/g),
+    )
+      .map((m) =>
+        decodeHtml(m[1].replace(/<[^>]+>/g, " "))
+          .replace(/\s+/g, " ")
+          .trim(),
+      )
       .filter(Boolean);
     return xmlTexts.join(" ") || null;
   } catch {
