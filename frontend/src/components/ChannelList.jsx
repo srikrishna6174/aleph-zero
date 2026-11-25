@@ -1,41 +1,125 @@
 import { useState, useMemo } from "react";
-import { Search, Trash2 } from "lucide-react";
+import { Search, Trash2, ExternalLink, Pencil, Check, X } from "lucide-react";
+import toast from "react-hot-toast";
 
-const YoutubeIcon = ({ className, style }) => (
-  <svg className={className} style={style} fill="currentColor" viewBox="0 0 24 24">
-    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z"/>
-    <path fill="var(--color-surface-900)" d="M9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+const YoutubeIcon = ({ className }) => (
+  <svg className={className} fill="currentColor" viewBox="0 0 24 24">
+    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z" />
+    <path fill="#18181b" d="M9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
   </svg>
 );
 
-export default function ChannelList({ channels, onRemoveChannel, loading }) {
+const AVATAR_COLORS = [
+  ["#3b82f6", "#eff6ff"],
+  ["#8b5cf6", "#f5f3ff"],
+  ["#10b981", "#ecfdf5"],
+  ["#f59e0b", "#fffbeb"],
+  ["#ec4899", "#fdf2f8"],
+  ["#06b6d4", "#ecfeff"],
+];
+
+function ChannelAvatar({ channel, displayName }) {
+  const [imgFailed, setImgFailed] = useState(false);
+  const avatarUrl = channel.thumbnail_url || "";
+  const initial = displayName.charAt(0).toUpperCase();
+  const colorPair =
+    AVATAR_COLORS[(channel.channel_id?.charCodeAt(2) || 0) % AVATAR_COLORS.length] ||
+    AVATAR_COLORS[0];
+
+  if (avatarUrl && !imgFailed) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={displayName}
+        className="w-11 h-11 rounded-xl object-cover shrink-0 border border-white/10 shadow-md"
+        loading="lazy"
+        onError={() => setImgFailed(true)}
+      />
+    );
+  }
+
+  return (
+    <div
+      className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 text-base font-bold shadow-inner"
+      style={{
+        background: `linear-gradient(135deg, ${colorPair[0]}, #1e1b4b)`,
+        color: colorPair[1],
+      }}
+    >
+      {initial}
+    </div>
+  );
+}
+
+export default function ChannelList({
+  channels = [],
+  onRemoveChannel,
+  onRenameChannel,
+  loading = false,
+}) {
   const [searchQuery, setSearchQuery] = useState("");
   const [removingId, setRemovingId] = useState(null);
+  const [editingDocId, setEditingDocId] = useState(null);
+  const [editValue, setEditValue] = useState("");
+
+  const safeChannels = useMemo(
+    () => (Array.isArray(channels) ? channels : []),
+    [channels],
+  );
 
   const filteredChannels = useMemo(() => {
-    if (!searchQuery) return channels;
-    const q = searchQuery.toLowerCase();
-    return channels.filter(c =>
-      c.name?.toLowerCase().includes(q) || c.channel_id.toLowerCase().includes(q)
-    );
-  }, [channels, searchQuery]);
+    if (!searchQuery) return safeChannels;
+    const q = searchQuery.toLowerCase().trim();
+    return safeChannels.filter((c) => {
+      const name = (c.name || "").toLowerCase();
+      const cid = (c.channel_id || "").toLowerCase();
+      return name.includes(q) || cid.includes(q);
+    });
+  }, [safeChannels, searchQuery]);
 
-  const handleRemove = async (channelId) => {
+  const handleRemove = async (channelId, displayName) => {
     setRemovingId(channelId);
     try {
       await onRemoveChannel(channelId);
+      toast.success(`Unsubscribed from ${displayName}`);
+    } catch (err) {
+      toast.error(err?.message || "Failed to unsubscribe");
     } finally {
       setRemovingId(null);
     }
   };
 
-  if (loading && channels.length === 0) {
+  const startEdit = (channel, displayName) => {
+    setEditingDocId(channel.$id ?? channel.id);
+    setEditValue(channel.name && channel.name !== channel.channel_id ? channel.name : displayName);
+  };
+
+  const saveEdit = async (channel) => {
+    const docId = channel.$id ?? channel.id;
+    const trimmed = editValue.trim();
+    if (!trimmed || !onRenameChannel) {
+      setEditingDocId(null);
+      return;
+    }
+    const ok = await onRenameChannel(docId, trimmed);
+    if (ok) {
+      toast.success(`Renamed to ${trimmed}`);
+    } else {
+      toast.error("Could not update channel name");
+    }
+    setEditingDocId(null);
+  };
+
+  if (loading && safeChannels.length === 0) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/5">
-            <div className="skeleton w-12 h-12 rounded-xl shrink-0" />
-            <div className="flex-1 space-y-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div
+            key={i}
+            className="flex items-center gap-4 p-4 rounded-xl bg-white/[0.04] border border-white/[0.06]"
+          >
+            <div className="skeleton w-11 h-11 rounded-xl shrink-0" />
+            <div className="flex-1 space-y-2.5">
               <div className="skeleton h-3.5 rounded-md w-3/4" />
               <div className="skeleton h-2.5 rounded-md w-1/2" />
             </div>
@@ -47,88 +131,146 @@ export default function ChannelList({ channels, onRemoveChannel, loading }) {
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        {channels.length > 0 && (
+      {safeChannels.length > 0 && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
           <div className="relative w-full sm:max-w-xs shrink-0 group">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-blue-400 transition-colors" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-blue-400 transition-colors" />
             <input
               type="text"
-              placeholder="Search channels..."
+              placeholder="Search tracked channels…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="input-light pl-10 py-2.5 text-sm"
+              className="input-light pl-10 py-2.5 text-sm w-full"
             />
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
-      {channels.length === 0 ? (
+      {safeChannels.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 px-4">
-          <div className="w-20 h-20 mb-6 rounded-2xl flex items-center justify-center bg-white/5 border border-white/10 shadow-lg relative">
-            <div className="absolute inset-0 bg-blue-500/20 blur-xl rounded-full"></div>
-            <YoutubeIcon className="w-10 h-10 text-gray-400 relative z-10" />
+          <div className="w-20 h-20 mb-5 rounded-2xl flex items-center justify-center bg-white/[0.04] border border-white/10 shadow-lg relative">
+            <div className="absolute inset-0 bg-blue-500/20 blur-xl rounded-full" />
+            <YoutubeIcon className="w-9 h-9 text-zinc-400 relative z-10" />
           </div>
-          <p className="text-lg font-bold text-gray-200 mb-2 tracking-wide">No channels tracked yet</p>
-          <p className="text-sm text-gray-400 max-w-sm text-center">Use the form to add a channel and the AI will begin tracking it.</p>
+          <p className="text-lg font-bold text-zinc-100 mb-2">
+            No channels tracked yet
+          </p>
+          <p className="text-sm text-zinc-400 max-w-sm text-center">
+            Use the form or popular channel presets on the left to start
+            receiving AI summaries.
+          </p>
         </div>
       ) : filteredChannels.length === 0 ? (
-        <div className="text-center py-12 text-gray-400 bg-white/5 rounded-2xl border border-white/5">
-          <p className="text-lg">No channels match "<span className="text-white">{searchQuery}</span>"</p>
+        <div className="text-center py-12 text-zinc-400 bg-white/[0.03] rounded-2xl border border-white/[0.06]">
+          <p className="text-sm">
+            No channels match &ldquo;<span className="text-white font-semibold">{searchQuery}</span>&rdquo;
+          </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 max-h-[600px] overflow-y-auto sidebar-scroll pr-2 pb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 max-h-[600px] overflow-y-auto sidebar-scroll pr-1 pb-2">
           {filteredChannels.map((channel, index) => {
+            const docId = channel.$id ?? channel.id ?? channel.channel_id;
             const isRemoving = removingId === channel.channel_id;
-            const initial = (channel.name || "?").charAt(0).toUpperCase();
-
-            const colors = [
-              ['#3b82f6', '#eff6ff'], // blue
-              ['#8b5cf6', '#f5f3ff'], // violet
-              ['#10b981', '#ecfdf5'], // emerald
-              ['#f59e0b', '#fffbeb'], // amber
-              ['#ec4899', '#fdf2f8'], // pink
-              ['#06b6d4', '#ecfeff'], // cyan
-            ];
-            const colorPair = colors[channel.channel_id?.charCodeAt(2) % colors.length] || colors[0];
+            const isEditing = editingDocId === docId;
+            const displayName =
+              channel.name && channel.name !== channel.channel_id
+                ? channel.name
+                : `Channel ${channel.channel_id.substring(0, 8)}…`;
 
             return (
               <div
-                key={channel.$id ?? channel.id ?? channel.channel_id}
-                className="group flex items-center justify-between p-4 rounded-xl transition-all duration-300 animate-fade-in-up hover:-translate-y-1 bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 hover:border-white/10 shadow-[0_4px_12px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.2)]"
+                key={docId}
+                data-channel-id={channel.channel_id}
+                className="group flex items-center justify-between gap-3 p-4 rounded-xl transition-all duration-200 animate-fade-in-up bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] hover:border-white/[0.14]"
                 style={{
-                  animationDelay: `${(index % 15) * 0.04}s`,
-                  opacity: isRemoving ? 0.5 : undefined,
+                  animationDelay: `${(index % 15) * 0.035}s`,
+                  opacity: isRemoving ? 0.5 : 1,
                 }}
               >
-                <div className="flex items-center gap-4 min-w-0">
-                  <div
-                    className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 text-lg font-bold shadow-inner"
-                    style={{ background: `linear-gradient(135deg, ${colorPair[0]}, #1e1b4b)`, color: colorPair[1] }}
-                  >
-                    {initial}
-                  </div>
+                <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                  <ChannelAvatar channel={channel} displayName={displayName} />
 
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-gray-100 truncate mb-1 tracking-wide">
-                      {channel.name && channel.name !== channel.channel_id
-                        ? channel.name
-                        : <span className="italic text-gray-400 font-normal">Unknown Channel</span>
-                      }
-                    </p>
-                    <p className="text-[10px] text-gray-500 truncate font-mono bg-black/20 inline-block px-1.5 py-0.5 rounded">
-                      {channel.channel_id}
-                    </p>
+                    {isEditing ? (
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <input
+                          type="text"
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") saveEdit(channel);
+                            if (e.key === "Escape") setEditingDocId(null);
+                          }}
+                          autoFocus
+                          className="input-light py-1 px-2 text-xs"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => saveEdit(channel)}
+                          className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 cursor-pointer"
+                          title="Save"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingDocId(null)}
+                          className="p-1.5 rounded-lg bg-white/5 text-zinc-400 hover:text-white cursor-pointer"
+                          title="Cancel"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <p
+                        className="text-sm font-bold text-zinc-100 truncate mb-1"
+                        title={displayName}
+                      >
+                        {displayName}
+                      </p>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-zinc-400 truncate font-mono bg-black/35 px-1.5 py-0.5 rounded border border-white/[0.05]">
+                        {channel.channel_id}
+                      </span>
+                      <a
+                        href={`https://www.youtube.com/channel/${channel.channel_id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-zinc-500 hover:text-blue-400 transition-colors"
+                        title="Open channel on YouTube"
+                      >
+                        <ExternalLink size={12} />
+                      </a>
+                    </div>
                   </div>
                 </div>
 
-                <button
-                  onClick={() => handleRemove(channel.channel_id)}
-                  disabled={isRemoving}
-                  className="opacity-0 group-hover:opacity-100 p-2 rounded-lg cursor-pointer transition-all duration-200 ml-2 shrink-0 text-gray-500 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20"
-                  title="Unsubscribe"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                {!isEditing && (
+                  <div className="flex items-center gap-1 shrink-0">
+                    {onRenameChannel && (
+                      <button
+                        type="button"
+                        onClick={() => startEdit(channel, displayName)}
+                        className="p-2 rounded-lg cursor-pointer transition-all text-zinc-400 sm:text-zinc-500 hover:text-blue-300 hover:bg-blue-500/10 sm:opacity-65 sm:group-hover:opacity-100 focus:opacity-100"
+                        title="Rename channel"
+                        aria-label={`Rename ${displayName}`}
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleRemove(channel.channel_id, displayName)}
+                      disabled={isRemoving}
+                      className="p-2 rounded-lg cursor-pointer transition-all text-zinc-400 sm:text-zinc-500 hover:text-red-400 hover:bg-red-500/10 sm:opacity-65 sm:group-hover:opacity-100 focus:opacity-100"
+                      title="Unsubscribe from channel"
+                      aria-label={`Unsubscribe from ${displayName}`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}

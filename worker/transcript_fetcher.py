@@ -9,6 +9,7 @@ Fetch Order:
   3. Raises TranscriptFetchError — caller may choose AI fallback from metadata
 """
 
+from collections import deque
 import json
 import logging
 import os
@@ -47,48 +48,47 @@ class TranscriptFetchError(Exception):
     pass
 
 
-def fetch_transcript(video_id: str, chunk_size: int = 4000) -> TranscriptResult:
+def fetch_transcript(video_id: str, chunk_size: int = 15000) -> TranscriptResult:
     """
     Fetch the transcript for a YouTube video using a multi-layer fallback.
 
     Layer 1: youtube-transcript-api (fast, pure-Python)
     Layer 2: yt-dlp subprocess (more robust against cloud IP blocks)
-
-    Args:
-        video_id: The YouTube video ID.
-        chunk_size: Maximum character count per transcript chunk.
-
-    Returns:
-        TranscriptResult with full text, language info, and chunked segments.
-
-    Raises:
-        TranscriptFetchError: If ALL layers fail to retrieve a transcript.
     """
     errors = []
 
     # ── Layer 1: youtube-transcript-api ──────────────────────────────────────
     try:
         result = _fetch_via_ytt_api(video_id, chunk_size)
-        logger.info(f"[Layer 1 ✅] youtube-transcript-api succeeded for {video_id}")
+        logger.info(f"[Layer 1] youtube-transcript-api succeeded for {video_id}")
         return result
     except TranscriptFetchError as e:
-        logger.warning(f"[Layer 1 ❌] youtube-transcript-api failed for {video_id}: {e}")
+        logger.warning(f"[Layer 1] youtube-transcript-api failed for {video_id}: {e}")
         errors.append(f"Layer 1 (youtube-transcript-api): {e}")
 
     # ── Layer 2: yt-dlp ──────────────────────────────────────────────────────
     try:
         result = _fetch_via_ytdlp(video_id, chunk_size)
-        logger.info(f"[Layer 2 ✅] yt-dlp succeeded for {video_id}")
+        logger.info(f"[Layer 2] yt-dlp succeeded for {video_id}")
         return result
     except TranscriptFetchError as e:
-        logger.warning(f"[Layer 2 ❌] yt-dlp failed for {video_id}: {e}")
+        logger.warning(f"[Layer 2] yt-dlp failed for {video_id}: {e}")
         errors.append(f"Layer 2 (yt-dlp): {e}")
 
     # ── All layers exhausted ──────────────────────────────────────────────────
     raise TranscriptFetchError(
-        f"All transcript layers failed for {video_id}. "
-        + " | ".join(errors)
+        f"All transcript layers failed for {video_id}. " + " | ".join(errors)
     )
+
+
+def _extract_snippet_text(snippet) -> str:
+    """Extract plain text from either a v1.x FetchedTranscriptSnippet or a dict."""
+    if isinstance(snippet, dict):
+        return (snippet.get("text") or "").strip()
+    text = getattr(snippet, "text", None)
+    if text is not None:
+        return str(text).strip()
+    return str(snippet).strip()
 
 
 # ─── Layer 1: youtube-transcript-api ─────────────────────────────────────────
@@ -114,31 +114,26 @@ def _fetch_via_ytt_api(video_id: str, chunk_size: int) -> TranscriptResult:
 
     # Strategy 1: Try to find a native English transcript
     try:
-        english_transcript = transcript_list.find_transcript(["en", "en-US", "en-GB"])
+        english_transcript = transcript_list.find_transcript(["en", "en-US", "en-GB", "en-IN"])
         transcript_data = english_transcript.fetch()
         language = english_transcript.language_code
         logger.debug(f"[Layer 1] Found native English transcript for {video_id} ({language})")
     except NoTranscriptFound:
         logger.debug(f"[Layer 1] No native English transcript for {video_id}, trying translation...")
 
-        # Strategy 2: Find any transcript and translate to English
+        # Strategy 2: Find any transcript and translate to English (with fallback to original)
         try:
             available_transcripts = list(transcript_list)
             if not available_transcripts:
                 raise TranscriptFetchError(f"No transcripts found for video {video_id}")
 
             # Prefer manually created transcripts over auto-generated ones
-            selected = None
-            for t in available_transcripts:
-                if not t.is_generated:
-                    selected = t
-                    break
-            if selected is None:
-                selected = available_transcripts[0]
-
+            selected = next(
+                (t for t in available_transcripts if not t.is_generated),
+                available_transcripts[0],
+            )
             original_language = selected.language_code
 
-            # Check if translation to English is available
             translation_languages = [
                 lang.get("language_code", "") if isinstance(lang, dict) else getattr(lang, "language_code", "")
                 for lang in (selected.translation_languages or [])
@@ -146,11 +141,17 @@ def _fetch_via_ytt_api(video_id: str, chunk_size: int) -> TranscriptResult:
             is_translatable = "en" in translation_languages
 
             if is_translatable:
-                translated = selected.translate("en")
-                transcript_data = translated.fetch()
-                language = f"{original_language}->en"
-                was_translated = True
-                logger.debug(f"[Layer 1] Successfully translated {original_language}->en for {video_id}")
+                try:
+                    transcript_data = selected.translate("en").fetch()
+                    language = f"{original_language}->en"
+                    was_translated = True
+                except Exception as trans_err:
+                    logger.debug(
+                        f"[Layer 1] Translation to English failed ({trans_err}), "
+                        f"falling back to raw {original_language} transcript"
+                    )
+                    transcript_data = selected.fetch()
+                    language = original_language
             else:
                 transcript_data = selected.fetch()
                 language = original_language
@@ -163,11 +164,13 @@ def _fetch_via_ytt_api(video_id: str, chunk_size: int) -> TranscriptResult:
     if not transcript_data:
         raise TranscriptFetchError(f"Could not retrieve any transcript data for {video_id}")
 
-    full_text = " ".join(
-        snippet.get("text", "").strip() if isinstance(snippet, dict) else str(snippet).strip()
-        for snippet in transcript_data
-        if (snippet.get("text", "").strip() if isinstance(snippet, dict) else str(snippet).strip())
-    )
+    parts = []
+    for snippet in transcript_data:
+        text = _extract_snippet_text(snippet)
+        if text:
+            parts.append(text.replace("\n", " "))
+
+    full_text = re.sub(r"\s+", " ", " ".join(parts)).strip()
 
     if not full_text:
         raise TranscriptFetchError(f"Transcript for {video_id} is empty after concatenation")
@@ -190,15 +193,14 @@ def _fetch_via_ytdlp(video_id: str, chunk_size: int) -> TranscriptResult:
     """
     Fetch transcript using yt-dlp as a subprocess.
     Downloads only subtitle/caption files (no video), then parses them.
-    Supports json3 (YouTube native) and vtt formats.
+    Supports json3 (YouTube native) and vtt formats, with English-first then any-language fallback.
     """
     logger.debug(f"[Layer 2] Trying yt-dlp for {video_id}")
 
-    # Check yt-dlp is available
     try:
         subprocess.run(
             ["yt-dlp", "--version"],
-            capture_output=True, check=True, timeout=10
+            capture_output=True, check=True, timeout=10,
         )
     except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired) as e:
         raise TranscriptFetchError(f"yt-dlp not available: {e}")
@@ -208,16 +210,21 @@ def _fetch_via_ytdlp(video_id: str, chunk_size: int) -> TranscriptResult:
     with tempfile.TemporaryDirectory() as tmpdir:
         output_template = os.path.join(tmpdir, "%(id)s.%(ext)s")
 
-        # Try json3 first (YouTube's native format — richest data)
-        # Then fallback to vtt (widely supported)
-        for sub_format in ["json3", "vtt"]:
+        # Try English captions first across json3/vtt, then any available language
+        attempts = [
+            ("json3", "en,en-US,en-GB,en.*"),
+            ("vtt", "en,en-US,en-GB,en.*"),
+            ("json3", "all,-live_chat"),
+            ("vtt", "all,-live_chat"),
+        ]
+        for sub_format, sub_langs in attempts:
             try:
                 result = _ytdlp_download_subs(
                     video_url=video_url,
-                    video_id=video_id,
                     tmpdir=tmpdir,
                     output_template=output_template,
                     sub_format=sub_format,
+                    sub_langs=sub_langs,
                 )
                 if result:
                     text, language, was_translated = result
@@ -235,7 +242,7 @@ def _fetch_via_ytdlp(video_id: str, chunk_size: int) -> TranscriptResult:
                             source=f"yt-dlp ({sub_format})",
                         )
             except Exception as e:
-                logger.debug(f"[Layer 2] yt-dlp {sub_format} attempt failed: {e}")
+                logger.debug(f"[Layer 2] yt-dlp {sub_format} ({sub_langs}) attempt failed: {e}")
                 continue
 
     raise TranscriptFetchError(f"yt-dlp could not retrieve any captions for {video_id}")
@@ -243,10 +250,10 @@ def _fetch_via_ytdlp(video_id: str, chunk_size: int) -> TranscriptResult:
 
 def _ytdlp_download_subs(
     video_url: str,
-    video_id: str,
     tmpdir: str,
     output_template: str,
     sub_format: str,
+    sub_langs: str = "en,en-US,en-GB,en.*",
 ) -> tuple[str, str, bool] | None:
     """
     Run yt-dlp to download subtitles for a video.
@@ -254,26 +261,26 @@ def _ytdlp_download_subs(
     """
     cmd = [
         "yt-dlp",
-        "--skip-download",           # Don't download the video
-        "--write-sub",               # Download manual subtitles
-        "--write-auto-sub",          # Also grab auto-generated subs
-        "--sub-lang", "en,en-US,en-GB,en.*",  # Prefer English
+        "--skip-download",
+        "--write-sub",
+        "--write-auto-sub",
+        "--sub-lang", sub_langs,
         "--sub-format", sub_format,
-        "--no-playlist",             # Process only the single video
+        "--no-playlist",
         "--no-warnings",
         "--quiet",
         "-o", output_template,
         video_url,
     ]
 
-    logger.debug(f"[Layer 2] Running yt-dlp ({sub_format}): {' '.join(cmd)}")
+    logger.debug(f"[Layer 2] Running yt-dlp ({sub_format}, {sub_langs})")
 
     try:
         proc = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
-            timeout=60,  # 60-second timeout
+            timeout=60,
         )
     except subprocess.TimeoutExpired:
         raise TranscriptFetchError("yt-dlp timed out after 60 seconds")
@@ -286,34 +293,31 @@ def _ytdlp_download_subs(
             f"stderr={stderr!r} stdout={stdout!r}"
         )
 
-    # Find the downloaded subtitle file(s)
     sub_files = list(Path(tmpdir).glob(f"*.{sub_format}"))
     if not sub_files:
-        # Also check for language-tagged filenames: video_id.en.json3 etc.
         sub_files = list(Path(tmpdir).glob(f"*.*.{sub_format}"))
 
     if not sub_files:
-        logger.debug(f"[Layer 2] No {sub_format} subtitle files found in {tmpdir}")
         return None
 
-    # Use the first found file; prefer English language-tagged file
-    chosen_file = sub_files[0]
+    # Prefer English files if multiple languages were downloaded
+    chosen_file = next(
+        (f for f in sub_files if ".en" in f.stem),
+        sub_files[0],
+    )
     language = "en"
     was_translated = False
 
-    # Extract language code from filename: video_id.LANG.ext
-    stem = chosen_file.stem  # e.g. "j33n3OG108I.en" or "j33n3OG108I.en-orig"
+    stem = chosen_file.stem
     parts = stem.rsplit(".", 1)
     if len(parts) == 2:
         lang_code = parts[1]
-        # Normalise: en-orig → en (auto-generated original English)
         if lang_code.endswith("-orig"):
             lang_code = lang_code[:-5]
         language = lang_code
         if not language.startswith("en"):
-            was_translated = True  # non-English sub → flag it
+            was_translated = True
 
-    # Parse the subtitle file
     try:
         text = _parse_subtitle_file(chosen_file, sub_format)
     except Exception as e:
@@ -331,15 +335,11 @@ def _parse_subtitle_file(filepath: Path, sub_format: str) -> str:
     elif sub_format in ("vtt", "webvtt"):
         return _parse_vtt(content)
     else:
-        # Fallback: strip all tags and return raw content
-        return re.sub(r"<[^>]+>", " ", content).strip()
+        return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", content)).strip()
 
 
 def _parse_json3(content: str) -> str:
-    """
-    Parse YouTube's json3 subtitle format.
-    Structure: {"events": [{"segs": [{"utf8": "text"}, ...], "tStartMs": ..., ...}, ...]}
-    """
+    """Parse YouTube's json3 subtitle format."""
     try:
         data = json.loads(content)
     except json.JSONDecodeError as e:
@@ -351,47 +351,49 @@ def _parse_json3(content: str) -> str:
         if not segs:
             continue
         segment_text = "".join(seg.get("utf8", "") for seg in segs)
-        # Skip music/sound descriptions like [Music] or \n
         segment_text = segment_text.replace("\n", " ").strip()
-        if segment_text and not segment_text.startswith("["):
-            texts.append(segment_text)
+        # Strip non-speech annotations like [Music], [Applause], [♪♪♪]
+        cleaned = re.sub(r"\[[^\]]*\]", "", segment_text).strip()
+        if cleaned:
+            texts.append(cleaned)
 
-    return " ".join(texts)
+    return re.sub(r"\s+", " ", " ".join(texts)).strip()
 
 
 def _parse_vtt(content: str) -> str:
     """
     Parse WebVTT subtitle format into plain text.
-    Removes timestamps, positioning cues, and HTML tags.
-    Deduplicates overlapping captions (common in YouTube auto-subs).
+    Removes timestamps, positioning cues, HTML tags, and adjacent rolling duplicates.
     """
     lines = content.splitlines()
-    seen: set[str] = set()
+    recent: deque[str] = deque(maxlen=6)
     texts = []
 
     for line in lines:
         line = line.strip()
 
-        # Skip header, blank lines, and timestamp lines
-        if not line or line.startswith("WEBVTT") or "-->" in line:
+        if (
+            not line
+            or line.startswith("WEBVTT")
+            or line.startswith("Kind:")
+            or line.startswith("Language:")
+            or "-->" in line
+        ):
             continue
 
-        # Skip numeric cue identifiers
         if line.isdigit():
             continue
 
-        # Remove HTML tags (e.g. <c>, <00:00:01.000>, etc.)
         clean = re.sub(r"<[^>]+>", "", line).strip()
 
-        # Remove VTT positioning tags like align:start position:0%
         if re.match(r"^[a-z]+:[^\s]", clean, re.IGNORECASE):
             continue
 
-        if clean and clean not in seen:
-            seen.add(clean)
+        if clean and clean not in recent:
+            recent.append(clean)
             texts.append(clean)
 
-    return " ".join(texts)
+    return re.sub(r"\s+", " ", " ".join(texts)).strip()
 
 
 # ─── Text Chunking ────────────────────────────────────────────────────────────
@@ -399,7 +401,7 @@ def _parse_vtt(content: str) -> str:
 def _chunk_text(text: str, chunk_size: int) -> list[str]:
     """
     Split text into chunks of approximately `chunk_size` characters.
-    Splits at sentence boundaries when possible.
+    Prefers sentence boundaries, falling back to word boundaries.
     """
     if len(text) <= chunk_size:
         return [text]
@@ -412,12 +414,18 @@ def _chunk_text(text: str, chunk_size: int) -> list[str]:
 
         if end_pos < len(text):
             best_break = -1
-            search_start = max(current_pos, end_pos - 200)
+            search_start = max(current_pos + 1, end_pos - 300)
 
             for i in range(end_pos, search_start, -1):
                 if text[i - 1] in ".!?" and (i >= len(text) or text[i] == " "):
                     best_break = i
                     break
+
+            if best_break == -1:
+                for i in range(end_pos, search_start, -1):
+                    if text[i - 1] == " ":
+                        best_break = i
+                        break
 
             if best_break > current_pos:
                 end_pos = best_break
@@ -426,6 +434,6 @@ def _chunk_text(text: str, chunk_size: int) -> list[str]:
         if chunk:
             chunks.append(chunk)
 
-        current_pos = end_pos
+        current_pos = max(end_pos, current_pos + 1)
 
     return chunks

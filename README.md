@@ -124,7 +124,7 @@ python worker.py
 | `APPWRITE_PROJECT_ID` | Your Appwrite project ID |
 | `APPWRITE_API_KEY` | Server-side API key with DB write permissions |
 | `GEMINI_API_KEY` | Google Gemini API key |
-| `GEMINI_MODEL` | Model name (default: `gemini-2.0-flash`) |
+| `GEMINI_MODEL` | Model name (default: `gemini-3.6-flash`) |
 | `RSS_LOOKBACK_MINUTES` | Recency threshold for new videos (default: `70`) |
 
 ---

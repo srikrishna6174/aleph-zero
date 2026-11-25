@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useChannels } from "../hooks/useChannels";
@@ -16,7 +16,16 @@ export default function ChannelsPage() {
     loading: channelsLoading,
     addChannel,
     removeChannel,
+    updateChannelName,
   } = useChannels();
+
+  const subscribedChannelIds = useMemo(
+    () =>
+      channels
+        .map((ch) => ch.channel_id ?? ch.data?.channel_id)
+        .filter(Boolean),
+    [channels],
+  );
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -24,7 +33,13 @@ export default function ChannelsPage() {
     }
   }, [authLoading, isAuthenticated, navigate]);
 
-  if (authLoading) return null;
+  if (authLoading) {
+    return (
+      <div className="min-h-screen page-bg flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full border-2 border-blue-500/30 border-t-blue-400 animate-spin" />
+      </div>
+    );
+  }
   if (!isAuthenticated) return null;
 
   return (
@@ -32,47 +47,49 @@ export default function ChannelsPage() {
       <title>Channels — TubeDigest</title>
 
       {/* Page Header */}
-      <div className="mb-10">
+      <div className="mb-8">
         <div className="flex items-center gap-2 mb-2">
-          <Users className="w-5 h-5 text-blue-400" />
+          <Users className="w-4 h-4 text-blue-400" />
           <span className="text-xs font-bold uppercase tracking-widest text-blue-400">
             Subscriptions
           </span>
         </div>
-        <h1 className="text-4xl font-extrabold tracking-tight text-white mb-3">
+        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white mb-2.5">
           Your Channels
         </h1>
-        <p className="text-sm text-gray-400 max-w-2xl leading-relaxed">
-          Manage the channels you want the AI worker to track. New videos will be automatically fetched and summarized every hour using Gemini 2.0.
+        <p className="text-sm text-zinc-400 max-w-2xl leading-relaxed">
+          Manage the YouTube creators tracked by TubeDigest. New uploads are
+          automatically fetched via RSS and summarized with Gemini 3.6 Flash.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-7">
         {/* Add Channel Form */}
         <div className="lg:col-span-1 flex flex-col gap-6">
           <AddChannelForm
             onAddChannel={addChannel}
-            loading={channelsLoading}
+            subscribedChannelIds={subscribedChannelIds}
           />
 
-          {/* Info card */}
           <div className="glass-card p-5 relative overflow-hidden group">
-            <div className="absolute -right-4 -top-4 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition-all duration-500"></div>
-            
+            <div className="absolute -right-4 -top-4 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition-all duration-500" />
+
             <div className="flex items-center gap-2 mb-4">
               <Info className="w-4 h-4 text-blue-400" />
-              <p className="text-xs font-bold uppercase tracking-wider text-gray-200">How it works</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-zinc-200">
+                How it works
+              </p>
             </div>
-            
-            <ol className="space-y-4 text-sm text-gray-300 relative z-10">
+
+            <ol className="space-y-3.5 text-sm text-zinc-300 relative z-10">
               {[
-                "Add a YouTube channel by URL, handle, or ID",
-                "Worker runs every hour via GitHub Actions",
-                "New videos are fetched via RSS feed",
-                "Gemini AI generates concise summaries",
+                "Add any YouTube channel by URL, @handle, video link, or ID",
+                "Worker checks RSS feeds hourly (or instantly via Sync Now)",
+                "Multi-layer transcript extractor captures captions & translations",
+                "Gemini AI generates clean, structured summaries in real time",
               ].map((step, i) => (
                 <li key={i} className="flex items-start gap-3">
-                  <span className="w-6 h-6 rounded-full text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5 bg-blue-500/20 text-blue-300 border border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.2)]">
+                  <span className="w-6 h-6 rounded-full text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5 bg-blue-500/20 text-blue-300 border border-blue-500/30">
                     {i + 1}
                   </span>
                   <span className="leading-snug">{step}</span>
@@ -84,14 +101,17 @@ export default function ChannelsPage() {
 
         {/* Channel List */}
         <div className="lg:col-span-2">
-          <div className="glass-card p-6 h-full min-h-[400px]">
-            <h2 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-              Tracked Channels
-              <span className="badge badge-gray ml-2">{channels.length}</span>
-            </h2>
+          <div className="glass-card p-6 h-full min-h-[420px]">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2.5">
+                Tracked Channels
+                <span className="badge badge-gray">{channels.length}</span>
+              </h2>
+            </div>
             <ChannelList
               channels={channels}
               onRemoveChannel={removeChannel}
+              onRenameChannel={updateChannelName}
               loading={channelsLoading}
             />
           </div>

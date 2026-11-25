@@ -3,10 +3,10 @@ import { Link } from "react-router-dom";
 import SummaryCard from "./SummaryCard";
 
 export default function SummaryFeed({
-  summaries,
-  channels,
-  loading,
-  hasMore,
+  summaries = [],
+  channels = [],
+  loading = false,
+  hasMore = false,
   onLoadMore,
   onRefresh,
   limit,
@@ -14,88 +14,73 @@ export default function SummaryFeed({
   showHeader = true,
   title = "Latest Summaries",
 }) {
+  const safeChannels = Array.isArray(channels) ? channels : [];
+  const safeSummaries = Array.isArray(summaries) ? summaries : [];
+
   const channelMap = {};
-  for (const ch of channels) {
+  for (const ch of safeChannels) {
+    if (!ch) continue;
     const id = ch.channel_id ?? ch.data?.channel_id;
     const name = ch.name ?? ch.data?.name;
-    if (id) channelMap[id] = name || id;
+    const avatar = ch.thumbnail_url ?? ch.data?.thumbnail_url ?? "";
+    if (id) {
+      channelMap[id] = {
+        name: name && name !== id ? name : `Channel ${id.substring(0, 8)}…`,
+        avatar,
+      };
+    }
   }
 
-  const displaySummaries = limit ? summaries.slice(0, limit) : summaries;
+  const displaySummaries = limit
+    ? safeSummaries.slice(0, limit)
+    : safeSummaries;
 
   return (
-    <div className="space-y-6">
-      {/* Feed header */}
+    <div className="space-y-5">
       {showHeader && (
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div
-              className="w-8 h-8 rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(59,130,246,0.3)]"
-              style={{ background: 'linear-gradient(135deg, var(--color-accent-600), var(--color-indigo-600))' }}
-            >
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-gradient-to-br from-blue-600 to-indigo-600 shadow-[0_0_15px_rgba(59,130,246,0.3)]">
               <Zap className="w-4 h-4 text-white" />
             </div>
             <h2 className="text-lg font-bold text-white tracking-wide">
               {title}
             </h2>
-            {summaries.length > 0 && (
-              <span className="badge badge-blue ml-2">
-                {summaries.length}
-              </span>
+            {safeSummaries.length > 0 && (
+              <span className="badge badge-blue">{safeSummaries.length}</span>
             )}
           </div>
-          <button
-            id="refresh-feed-btn"
-            onClick={onRefresh}
-            disabled={loading}
-            className="btn-secondary text-xs py-2 px-4 cursor-pointer disabled:opacity-50"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-            Refresh
-          </button>
-        </div>
-      )}
-
-      {/* Empty state */}
-      {!loading && summaries.length === 0 && (
-        <div className="glass-card p-16 text-center animate-fade-in-up">
-          <div className="w-20 h-20 mx-auto mb-6 rounded-3xl flex items-center justify-center bg-white/5 border border-white/10 relative shadow-2xl">
-            <div className="absolute inset-0 bg-blue-500/10 blur-xl rounded-full"></div>
-            <FileText className="w-10 h-10 text-blue-400 relative z-10" />
-          </div>
-          <h3 className="text-xl font-bold text-white mb-3 tracking-wide">
-            No summaries yet
-          </h3>
-          <p className="text-sm text-gray-400 mb-8 max-w-md mx-auto leading-relaxed">
-            Add YouTube channels to your watchlist. The AI worker processes new uploads every hour and generates summaries automatically using Gemini 2.0.
-          </p>
-          <Link
-            to="/channels"
-            className="btn-primary inline-flex text-sm py-3 px-6 shadow-[0_0_20px_rgba(59,130,246,0.2)]"
-          >
-            <Plus className="w-4 h-4" />
-            Add your first channel
-          </Link>
+          {onRefresh && (
+            <button
+              id="refresh-feed-btn"
+              type="button"
+              onClick={onRefresh}
+              disabled={loading}
+              className="btn-secondary text-xs py-2 px-3.5"
+            >
+              <RefreshCw
+                className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`}
+              />
+              Refresh
+            </button>
+          )}
         </div>
       )}
 
       {/* Loading skeleton */}
-      {loading && summaries.length === 0 && (
-        <div className="space-y-6">
+      {loading && safeSummaries.length === 0 && (
+        <div className="space-y-5">
           {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="glass-card p-6"
-            >
-              <div className="flex gap-5">
-                <div className="skeleton rounded-xl shrink-0" style={{ width: '160px', height: '90px' }} />
-                <div className="flex-1 space-y-4 pt-2">
+            <div key={i} className="glass-card p-6">
+              <div className="flex flex-col sm:flex-row gap-5">
+                <div className="skeleton rounded-xl shrink-0 w-full sm:w-[176px] h-[99px]" />
+                <div className="flex-1 space-y-3 pt-1">
                   <div className="skeleton h-4 rounded-lg w-3/4" />
                   <div className="skeleton h-3 rounded-lg w-1/2" />
                   <div className="skeleton h-3 rounded-lg w-1/3" />
                 </div>
               </div>
-              <div className="mt-6 pt-5 space-y-3 border-t border-white/5">
+              <div className="mt-5 pt-4 space-y-2.5 border-t border-white/5">
                 <div className="skeleton h-3.5 rounded-lg w-full" />
                 <div className="skeleton h-3.5 rounded-lg w-11/12" />
                 <div className="skeleton h-3.5 rounded-lg w-4/5" />
@@ -105,40 +90,64 @@ export default function SummaryFeed({
         </div>
       )}
 
+      {/* Empty state */}
+      {!loading && safeSummaries.length === 0 && (
+        <div className="glass-card p-12 sm:p-16 text-center animate-fade-in-up">
+          <div className="w-16 h-16 mx-auto mb-5 rounded-2xl flex items-center justify-center bg-white/[0.05] border border-white/10 relative">
+            <div className="absolute inset-0 bg-blue-500/15 blur-xl rounded-full" />
+            <FileText className="w-8 h-8 text-blue-400 relative z-10" />
+          </div>
+          <h3 className="text-xl font-bold text-white mb-2.5">
+            No summaries yet
+          </h3>
+          <p className="text-sm text-zinc-400 mb-7 max-w-md mx-auto leading-relaxed">
+            Add YouTube channels to your watchlist. The AI worker fetches new
+            uploads and generates structured summaries powered by Gemini 3.6
+            Flash.
+          </p>
+          <Link to="/channels" className="btn-primary text-sm">
+            <Plus className="w-4 h-4" />
+            Add your first channel
+          </Link>
+        </div>
+      )}
+
       {/* Summary cards */}
       {displaySummaries.length > 0 && (
-        <div className="space-y-6">
-          {displaySummaries.map((video, index) => (
-            <SummaryCard
-              key={video.$id ?? video.id}
-              video={video}
-              channelName={channelMap[video.channel_id] || ""}
-              index={index}
-              onRetry={onRetry}
-            />
-          ))}
+        <div className="space-y-5">
+          {displaySummaries.map((video, index) => {
+            const info = channelMap[video.channel_id] || {};
+            return (
+              <SummaryCard
+                key={video.$id ?? video.id}
+                video={video}
+                channelName={info.name || ""}
+                channelAvatar={info.avatar || ""}
+                index={index}
+                onRetry={onRetry}
+              />
+            );
+          })}
         </div>
       )}
 
       {/* Load more */}
       {hasMore && displaySummaries.length > 0 && (
-        <div className="flex justify-center pt-6 pb-8">
+        <div className="flex justify-center pt-4 pb-6">
           <button
             id="load-more-btn"
+            type="button"
             onClick={onLoadMore}
             disabled={loading}
-            className="btn-secondary px-8 py-3 text-sm cursor-pointer disabled:opacity-50"
+            className="btn-secondary px-8 py-3 text-sm"
           >
             {loading ? (
               <span className="inline-flex items-center gap-2">
-                <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                Loading...
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                Loading…
               </span>
             ) : (
-              "Load More"
+              "Load More Summaries"
             )}
           </button>
         </div>

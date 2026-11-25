@@ -41,6 +41,7 @@ class WorkerConfig:
     transcript_chunk_size: int   # Max characters per transcript chunk
     max_retries: int             # Max retry attempts for API calls
     retry_delay_seconds: int     # Delay between retries
+    initial_backfill_count: int  # Latest videos to backfill for brand-new channels
 
 
 def _require_env(key: str) -> str:
@@ -66,7 +67,7 @@ def get_appwrite_config() -> AppwriteConfig:
 def get_gemini_config() -> GeminiConfig:
     return GeminiConfig(
         api_key=_require_env("GEMINI_API_KEY"),
-        model=os.getenv("GEMINI_MODEL", "gemini-2.0-flash"),
+        model=os.getenv("GEMINI_MODEL", "gemini-3.6-flash"),
         max_output_tokens=int(os.getenv("GEMINI_MAX_OUTPUT_TOKENS", "2048")),
     )
 
@@ -74,7 +75,8 @@ def get_gemini_config() -> GeminiConfig:
 def get_worker_config() -> WorkerConfig:
     return WorkerConfig(
         rss_lookback_minutes=int(os.getenv("RSS_LOOKBACK_MINUTES", "70")),
-        transcript_chunk_size=int(os.getenv("TRANSCRIPT_CHUNK_SIZE", "4000")),
+        transcript_chunk_size=int(os.getenv("TRANSCRIPT_CHUNK_SIZE", "150000")),
         max_retries=int(os.getenv("MAX_RETRIES", "3")),
         retry_delay_seconds=int(os.getenv("RETRY_DELAY_SECONDS", "5")),
+        initial_backfill_count=int(os.getenv("INITIAL_BACKFILL_COUNT", "3")),
     )

@@ -37,12 +37,13 @@ jobs:
 
       # Gemini API
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      GEMINI_MODEL: gemini-2.0-flash
+      GEMINI_MODEL: gemini-3.6-flash
       GEMINI_MAX_OUTPUT_TOKENS: '2048'
 
       # Worker Tuning
       RSS_LOOKBACK_MINUTES: ${{ github.event.inputs.lookback_minutes || '70' }}
-      TRANSCRIPT_CHUNK_SIZE: '4000'
+      INITIAL_BACKFILL_COUNT: '3'
+      TRANSCRIPT_CHUNK_SIZE: '150000'
       MAX_RETRIES: '3'
       RETRY_DELAY_SECONDS: '5'
 

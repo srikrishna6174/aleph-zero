@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useChannels } from "../hooks/useChannels";
@@ -8,23 +8,26 @@ import StatsBar from "../components/StatsBar";
 import SummaryFeed from "../components/SummaryFeed";
 import { ArrowRight, Plus, Sparkles, RefreshCw } from "lucide-react";
 
+function getGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
 export default function DashboardPage() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { channels } = useChannels();
 
-  const subscribedChannelIds = useMemo(
-    () => channels.map((ch) => ch.channel_id ?? ch.data?.channel_id).filter(Boolean),
-    [channels]
-  );
-
   const {
     summaries,
+    stats,
     loading: summariesLoading,
     loadMore,
     refresh,
     retrySummary,
-  } = useSummaries(subscribedChannelIds);
+  } = useSummaries();
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -35,7 +38,13 @@ export default function DashboardPage() {
   const greeting = getGreeting();
   const firstName = (user?.name || user?.email || "").split(/[\s@]/)[0];
 
-  if (authLoading) return null;
+  if (authLoading) {
+    return (
+      <div className="min-h-screen page-bg flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full border-2 border-blue-500/30 border-t-blue-400 animate-spin" />
+      </div>
+    );
+  }
   if (!isAuthenticated) return null;
 
   return (
@@ -43,23 +52,22 @@ export default function DashboardPage() {
       <title>Overview — TubeDigest</title>
 
       {/* Welcome Header */}
-      <div className="mb-10 animate-fade-in-up">
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
+      <div className="mb-8 animate-fade-in-up">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-5">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="w-5 h-5 text-blue-400" />
+              <Sparkles className="w-4 h-4 text-blue-400" />
               <span className="text-xs font-bold uppercase tracking-widest text-blue-400">
                 Dashboard
               </span>
             </div>
-            <h1 className="text-4xl font-extrabold tracking-tight text-white mb-2">
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
               {greeting},{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">
-                {firstName || "there"}
-              </span>{" "}👋
+              <span className="gradient-text">{firstName || "there"}</span>
             </h1>
-            <p className="mt-2 text-sm text-gray-400">
-              Here's what your AI engine has been processing recently.
+            <p className="mt-2 text-sm text-zinc-400">
+              Here&apos;s what your AI engine has summarized across your
+              subscriptions.
             </p>
           </div>
 
@@ -67,9 +75,8 @@ export default function DashboardPage() {
             <Link
               to="/channels"
               className="btn-primary shrink-0 self-start shadow-[0_0_20px_rgba(59,130,246,0.3)]"
-              style={{ borderRadius: '12px', padding: '12px 24px' }}
             >
-              <Plus className="w-5 h-5" />
+              <Plus className="w-4 h-4" />
               Track your first channel
             </Link>
           )}
@@ -77,25 +84,31 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats */}
-      <StatsBar channels={channels} summaries={summaries} />
+      <StatsBar channels={channels} summaries={summaries} stats={stats} />
 
-      {/* Divider */}
-      <div className="my-8 h-px bg-white/10" />
+      <div className="my-8 h-px bg-white/[0.08]" />
 
       {/* Recent Feed */}
       <div>
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
           <div>
-            <h2 className="text-xl font-bold text-white tracking-wide">Recent Activity</h2>
-            <p className="text-sm mt-1 text-gray-400">Showing latest 5 processed videos</p>
+            <h2 className="text-xl font-bold text-white tracking-wide">
+              Recent Activity
+            </h2>
+            <p className="text-sm mt-1 text-zinc-400">
+              Showing latest 5 videos from your watchlist
+            </p>
           </div>
           <div className="flex items-center gap-3">
             <button
+              type="button"
               onClick={refresh}
               disabled={summariesLoading}
-              className="btn-secondary text-xs py-2 px-4 cursor-pointer disabled:opacity-50"
+              className="btn-secondary text-xs py-2 px-3.5"
             >
-              <RefreshCw className={`w-4 h-4 ${summariesLoading ? 'animate-spin' : ''}`} />
+              <RefreshCw
+                className={`w-3.5 h-3.5 ${summariesLoading ? "animate-spin" : ""}`}
+              />
               Refresh
             </button>
             <Link
@@ -123,12 +136,3 @@ export default function DashboardPage() {
     </Layout>
   );
 }
-
-function getGreeting() {
-  const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 17) return "Good afternoon";
-  return "Good evening";
-}
-
-

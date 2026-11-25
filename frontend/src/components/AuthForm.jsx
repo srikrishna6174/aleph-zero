@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
-import { Eye, EyeOff, ArrowRight } from "lucide-react";
+import { Eye, EyeOff, ArrowRight, AlertCircle, Loader2 } from "lucide-react";
 
 export default function AuthForm({ mode = "login", onToggleMode }) {
-  const { login, signup, loading, error, clearError } = useAuth();
+  const { login, signup, submitting, error, clearError } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -12,17 +12,26 @@ export default function AuthForm({ mode = "login", onToggleMode }) {
 
   const isLogin = mode === "login";
 
+  useEffect(() => {
+    setLocalError("");
+    clearError();
+  }, [mode, clearError]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLocalError("");
     clearError();
 
-    if (!email || !password) {
+    if (!email.trim() || !password) {
       setLocalError("Please fill in all required fields.");
       return;
     }
-    if (!isLogin && !name) {
-      setLocalError("Please enter your name.");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setLocalError("Please enter a valid email address.");
+      return;
+    }
+    if (!isLogin && !name.trim()) {
+      setLocalError("Please enter your full name.");
       return;
     }
     if (password.length < 8) {
@@ -37,91 +46,94 @@ export default function AuthForm({ mode = "login", onToggleMode }) {
         await signup(email, password, name);
       }
     } catch {
-      // Error handled by the hook
+      // Error state handled by AuthProvider
+    }
+  };
+
+  const handleDemoLogin = async () => {
+    setEmail("testjudge@example.com");
+    setPassword("Password123!");
+    setLocalError("");
+    clearError();
+    try {
+      await login("testjudge@example.com", "Password123!");
+    } catch {
+      // Error handled by AuthProvider
     }
   };
 
   const displayError = localError || error;
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        background: 'var(--color-surface-950)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '2rem 1rem',
-        position: 'relative',
-        overflow: 'hidden',
-      }}
-    >
-      {/* Subtle background decorations */}
-      <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 0 }}>
-        <div style={{
-          position: 'absolute', top: '-160px', right: '-160px',
-          width: '500px', height: '500px', borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(59,130,246,0.1) 0%, transparent 70%)',
-        }} />
-        <div style={{
-          position: 'absolute', bottom: '-160px', left: '-160px',
-          width: '450px', height: '450px', borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(139,92,246,0.1) 0%, transparent 70%)',
-        }} />
-        <div style={{
-          position: 'absolute', inset: 0, opacity: 0.15,
-          backgroundImage: 'radial-gradient(rgba(255,255,255,0.2) 1px, transparent 1px)',
-          backgroundSize: '32px 32px',
-        }} />
-      </div>
+    <div className="min-h-screen page-bg flex items-center justify-center px-4 py-10 relative overflow-hidden">
+      {/* Background dot grid */}
+      <div
+        className="absolute inset-0 opacity-15 pointer-events-none"
+        style={{
+          backgroundImage:
+            "radial-gradient(rgba(255,255,255,0.22) 1px, transparent 1px)",
+          backgroundSize: "32px 32px",
+        }}
+      />
 
-      {/* Content */}
-      <div className="animate-fade-in-up" style={{ width: '100%', maxWidth: '420px', position: 'relative', zIndex: 1 }}>
+      <div className="w-full max-w-md relative z-10 animate-fade-in-up">
         {/* Brand */}
-        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
-            <div style={{
-              width: '56px', height: '56px', borderRadius: '16px', display: 'flex',
-              alignItems: 'center', justifyContent: 'center',
-              background: 'linear-gradient(135deg, var(--color-accent-600), var(--color-indigo-600))',
-              boxShadow: '0 8px 30px rgba(37,99,235,0.4)',
-            }}>
-              <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center gap-3.5 mb-3">
+            <div className="w-13 h-13 rounded-2xl flex items-center justify-center bg-gradient-to-br from-blue-600 to-indigo-600 shadow-[0_8px_30px_rgba(37,99,235,0.45)]">
+              <svg
+                className="w-7 h-7 text-white"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2.5}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
             </div>
-            <div style={{ textAlign: 'left' }}>
-              <h1 style={{
-                fontSize: '28px', fontWeight: 800, lineHeight: 1.1,
-                color: 'white',
-              }}>
+            <div className="text-left">
+              <h1 className="text-2xl font-extrabold text-white tracking-tight leading-tight">
                 TubeDigest
               </h1>
-              <p className="gradient-text uppercase tracking-widest font-bold" style={{ fontSize: '11px', marginTop: '2px' }}>AI Engine</p>
+              <p className="text-[11px] font-bold uppercase tracking-widest gradient-text">
+                AI Engine
+              </p>
             </div>
           </div>
-          <p style={{ fontSize: '15px', color: 'var(--color-surface-400)' }}>
+          <p className="text-sm text-zinc-400">
             AI-powered YouTube channel summaries
           </p>
         </div>
 
         {/* Form Card */}
-        <div className="glass-card" style={{ padding: '2.5rem' }}>
-          <div style={{ marginBottom: '2rem' }}>
-            <h2 style={{ fontSize: '24px', fontWeight: 800, color: 'white', letterSpacing: '-0.02em' }}>
-              {isLogin ? "Welcome back 👋" : "Create account"}
+        <div className="glass-card p-7 sm:p-9">
+          <div className="mb-6">
+            <h2 className="text-2xl font-extrabold text-white tracking-tight">
+              {isLogin ? "Welcome back" : "Create account"}
             </h2>
-            <p style={{ fontSize: '14px', color: 'var(--color-surface-400)', marginTop: '8px' }}>
-              {isLogin ? "Sign in to access your dashboard" : "Start tracking channels for free"}
+            <p className="text-sm text-zinc-400 mt-1.5">
+              {isLogin
+                ? "Sign in to access your channel feed"
+                : "Start tracking YouTube creators in seconds"}
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {/* Name (signup only) */}
+          <form onSubmit={handleSubmit} noValidate className="space-y-4">
             {!isLogin && (
               <div className="animate-fade-in">
-                <label htmlFor="auth-name" style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--color-surface-400)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <label
+                  htmlFor="auth-name"
+                  className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2"
+                >
                   Full Name
                 </label>
                 <input
@@ -129,16 +141,18 @@ export default function AuthForm({ mode = "login", onToggleMode }) {
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="John Doe"
+                  placeholder="Jane Doe"
                   className="input-light"
                   required
                 />
               </div>
             )}
 
-            {/* Email */}
             <div>
-              <label htmlFor="auth-email" style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--color-surface-400)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <label
+                htmlFor="auth-email"
+                className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2"
+              >
                 Email Address
               </label>
               <input
@@ -152,83 +166,83 @@ export default function AuthForm({ mode = "login", onToggleMode }) {
               />
             </div>
 
-            {/* Password */}
             <div>
-              <label htmlFor="auth-password" style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--color-surface-400)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <label
+                htmlFor="auth-password"
+                className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2"
+              >
                 Password
               </label>
-              <div style={{ position: 'relative' }}>
+              <div className="relative">
                 <input
                   id="auth-password"
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="input-light"
-                  style={{ paddingRight: '2.75rem' }}
+                  className="input-light pr-11"
                   minLength={8}
                   required
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-surface-500)', cursor: 'pointer', background: 'none', border: 'none', padding: 0 }}
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 cursor-pointer p-1"
                   tabIndex={-1}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
 
-            {/* Error */}
             {displayError && (
-              <div
-                className="animate-fade-in"
-                style={{
-                  padding: '12px 16px', borderRadius: '12px', fontSize: '13px', fontWeight: 600,
-                  background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#f87171',
-                  display: 'flex', alignItems: 'flex-start', gap: '10px', backdropFilter: 'blur(8px)',
-                }}
-              >
-                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ flexShrink: 0, marginTop: '0px' }}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                {displayError}
+              <div className="animate-fade-in px-4 py-3 rounded-xl text-xs font-semibold bg-red-500/10 border border-red-500/25 text-red-300 flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-400" />
+                <span>{displayError}</span>
               </div>
             )}
 
-            {/* Submit */}
             <button
               id="auth-submit-btn"
               type="submit"
-              disabled={loading}
-              className="btn-primary"
-              style={{ width: '100%', padding: '14px', borderRadius: '12px', fontSize: '15px', marginTop: '8px', letterSpacing: '0.02em' }}
+              disabled={submitting}
+              className="btn-primary w-full py-3.5 text-[15px] mt-2"
             >
-              {loading ? (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                  <svg className="animate-spin" width="18" height="18" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" style={{ opacity: 0.25 }} />
-                    <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" style={{ opacity: 0.75 }} />
-                  </svg>
-                  {isLogin ? "Signing in..." : "Creating account..."}
+              {submitting ? (
+                <span className="inline-flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  {isLogin ? "Signing in…" : "Creating account…"}
                 </span>
               ) : (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                <span className="inline-flex items-center gap-2">
                   {isLogin ? "Sign In" : "Create Account"}
                   <ArrowRight size={18} />
                 </span>
               )}
             </button>
+
+            {isLogin && (
+              <button
+                type="button"
+                id="auth-fill-demo-btn"
+                disabled={submitting}
+                onClick={handleDemoLogin}
+                className="btn-secondary w-full py-2.5 text-xs text-zinc-300"
+              >
+                Sign In with Demo Account
+              </button>
+            )}
           </form>
 
-          <div style={{ marginTop: '24px', textAlign: 'center' }}>
-            <p style={{ fontSize: '14px', color: 'var(--color-surface-400)' }}>
+          <div className="mt-6 text-center">
+            <p className="text-sm text-zinc-400">
               {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
               <button
+                type="button"
                 id="auth-toggle-mode-btn"
                 onClick={onToggleMode}
-                style={{ color: 'var(--color-accent-400)', fontWeight: 700, cursor: 'pointer', background: 'none', border: 'none', padding: 0, fontSize: '14px' }}
+                className="text-blue-400 hover:text-blue-300 font-bold cursor-pointer"
               >
                 {isLogin ? "Sign Up" : "Sign In"}
               </button>
@@ -237,18 +251,14 @@ export default function AuthForm({ mode = "login", onToggleMode }) {
         </div>
 
         {/* Feature chips */}
-        <div style={{ marginTop: '32px', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '12px' }}>
-          {["Hourly summaries", "Zero-setup tracking", "Powered by Gemini 2.0"].map((f) => (
-            <span
-              key={f}
-              style={{
-                fontSize: '11px', padding: '6px 14px', borderRadius: '999px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em',
-                background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)',
-                color: 'var(--color-surface-400)',
-                backdropFilter: 'blur(8px)',
-              }}
-            >
-              {f}
+        <div className="mt-7 flex flex-wrap justify-center gap-2.5">
+          {[
+            "Hourly summaries",
+            "Multi-layer transcripts",
+            "Gemini 3.6 Flash",
+          ].map((chip) => (
+            <span key={chip} className="badge badge-gray">
+              {chip}
             </span>
           ))}
         </div>
