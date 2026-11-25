@@ -31,6 +31,7 @@ function ChannelAvatar({ channel, displayName }) {
       <img
         src={avatarUrl}
         alt={displayName}
+        referrerPolicy="no-referrer"
         className="w-11 h-11 rounded-xl object-cover shrink-0 border border-white/10 shadow-md"
         loading="lazy"
         onError={() => setImgFailed(true)}

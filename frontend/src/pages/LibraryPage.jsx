@@ -5,6 +5,7 @@ import { useChannels } from "../hooks/useChannels";
 import { useSummaries } from "../hooks/useSummaries";
 import Layout from "../components/Layout";
 import SummaryFeed from "../components/SummaryFeed";
+import toast from "react-hot-toast";
 import {
   Search,
   Library,
@@ -14,6 +15,9 @@ import {
   Loader2,
   Filter,
   Tv,
+  ListPlus,
+  CheckSquare,
+  X,
 } from "lucide-react";
 
 export default function LibraryPage() {
@@ -23,6 +27,9 @@ export default function LibraryPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [channelFilter, setChannelFilter] = useState("all");
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedVideoIds, setSelectedVideoIds] = useState(() => new Set());
+  const [requestingSelected, setRequestingSelected] = useState(false);
 
   const {
     summaries,
@@ -32,6 +39,8 @@ export default function LibraryPage() {
     loadMore,
     refresh,
     retrySummary,
+    requestVideoSummaries,
+    setRequestModalOpen,
   } = useSummaries();
 
   useEffect(() => {
@@ -143,25 +152,108 @@ export default function LibraryPage() {
   const hasActiveFilters =
     !!searchQuery || statusFilter !== "all" || channelFilter !== "all";
 
+  const handleToggleSelect = (video) => {
+    const vid = video?.video_id;
+    if (!vid) return;
+    setSelectedVideoIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(vid)) next.delete(vid);
+      else next.add(vid);
+      return next;
+    });
+  };
+
+  const handleSelectAllVisible = () => {
+    setSelectedVideoIds(
+      new Set(filteredSummaries.map((v) => v?.video_id).filter(Boolean)),
+    );
+  };
+
+  const handleClearSelection = () => {
+    setSelectedVideoIds(new Set());
+  };
+
+  const handleRequestSelected = async () => {
+    const selectedVideos = summaries.filter(
+      (v) => v?.video_id && selectedVideoIds.has(v.video_id),
+    );
+    if (selectedVideos.length === 0) return;
+
+    try {
+      setRequestingSelected(true);
+      const res = await requestVideoSummaries(selectedVideos);
+      if (res?.mode === "instant") {
+        toast.success(
+          `Generated summary for ${selectedVideos.length} selected video(s).`,
+        );
+      } else if (res?.mode === "worker") {
+        toast.success(
+          `Started immediate summarization for ${selectedVideos.length} selected video(s).`,
+        );
+      } else {
+        toast.success(
+          `Queued ${selectedVideos.length} selected video(s) for summarization.`,
+        );
+      }
+      setSelectionMode(false);
+      setSelectedVideoIds(new Set());
+    } catch (err) {
+      toast.error(err?.message || "Failed to request summary.");
+    } finally {
+      setRequestingSelected(false);
+    }
+  };
+
   return (
     <Layout>
       <title>Library — TubeDigest</title>
 
       {/* Page Header */}
       <div className="mb-7 animate-fade-in">
-        <div className="flex items-center gap-2 mb-2">
-          <Library className="w-4 h-4 text-blue-400" />
-          <span className="text-xs font-bold uppercase tracking-widest text-blue-400">
-            Library
-          </span>
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Library className="w-4 h-4 text-blue-400" />
+              <span className="text-xs font-bold uppercase tracking-widest text-blue-400">
+                Library
+              </span>
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white mb-2">
+              Summary Library
+            </h1>
+            <p className="text-sm text-zinc-400 max-w-2xl leading-relaxed">
+              Browse, search, and filter all AI-generated video summaries across
+              your tracked channels.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            <button
+              id="library-toggle-select-btn"
+              type="button"
+              onClick={() => {
+                setSelectionMode((v) => !v);
+                setSelectedVideoIds(new Set());
+              }}
+              className={`btn-secondary text-xs py-2.5 px-3.5 ${
+                selectionMode ? "border-blue-500/50 text-blue-300 bg-blue-500/10" : ""
+              }`}
+            >
+              <CheckSquare className="w-4 h-4" />
+              {selectionMode ? "Exit Selection" : "Select Videos"}
+            </button>
+
+            <button
+              id="library-request-summary-btn"
+              type="button"
+              onClick={() => setRequestModalOpen(true)}
+              className="btn-primary text-xs py-2.5 px-4 shadow-[0_0_20px_rgba(59,130,246,0.28)]"
+            >
+              <ListPlus className="w-4 h-4" />
+              Request Summary
+            </button>
+          </div>
         </div>
-        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white mb-2">
-          Summary Library
-        </h1>
-        <p className="text-sm text-zinc-400 max-w-2xl leading-relaxed">
-          Browse, search, and filter all AI-generated video summaries across
-          your tracked channels.
-        </p>
       </div>
 
       {/* Filters Bar */}
@@ -261,6 +353,57 @@ export default function LibraryPage() {
         )}
       </div>
 
+      {/* Batch selection toolbar */}
+      {selectionMode && (
+        <div className="glass-card p-4 mb-6 flex flex-wrap items-center justify-between gap-3 border-blue-500/30 bg-blue-500/[0.06] animate-fade-in">
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-bold text-blue-300">
+              {selectedVideoIds.size} video
+              {selectedVideoIds.size === 1 ? "" : "s"} selected
+            </span>
+            {filteredSummaries.length > 0 && (
+              <button
+                type="button"
+                onClick={handleSelectAllVisible}
+                className="text-xs font-semibold text-zinc-300 hover:text-white cursor-pointer underline underline-offset-2"
+              >
+                Select all visible ({filteredSummaries.length})
+              </button>
+            )}
+            {selectedVideoIds.size > 0 && (
+              <button
+                type="button"
+                onClick={handleClearSelection}
+                className="text-xs font-semibold text-zinc-400 hover:text-zinc-200 cursor-pointer inline-flex items-center gap-1"
+              >
+                <X className="w-3 h-3" />
+                Clear
+              </button>
+            )}
+          </div>
+
+          <button
+            id="library-submit-selected-btn"
+            type="button"
+            disabled={selectedVideoIds.size === 0 || requestingSelected}
+            onClick={handleRequestSelected}
+            className="btn-primary text-xs py-2 px-4"
+          >
+            {requestingSelected ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                Requesting…
+              </>
+            ) : (
+              <>
+                <ListPlus className="w-3.5 h-3.5" />
+                Request Summary ({selectedVideoIds.size})
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
       {/* Results or empty filtered state */}
       {filteredSummaries.length === 0 && !summariesLoading && hasActiveFilters ? (
         <div className="glass-card p-14 text-center">
@@ -308,6 +451,9 @@ export default function LibraryPage() {
           onLoadMore={loadMore}
           onRefresh={refresh}
           onRetry={retrySummary}
+          selectable={selectionMode}
+          selectedVideoIds={selectedVideoIds}
+          onToggleSelect={handleToggleSelect}
         />
       )}
     </Layout>

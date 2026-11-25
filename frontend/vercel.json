@@ -1,4 +1,9 @@
 {
+  "functions": {
+    "api/request-summary.js": {
+      "maxDuration": 60
+    }
+  },
   "rewrites": [
     {
       "source": "/((?!api/|assets/|favicon\\.svg|icons\\.svg).*)",

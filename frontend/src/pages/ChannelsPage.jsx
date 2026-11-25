@@ -84,7 +84,7 @@ export default function ChannelsPage() {
             <ol className="space-y-3.5 text-sm text-zinc-300 relative z-10">
               {[
                 "Add any YouTube channel by URL, @handle, video link, or ID",
-                "Worker checks RSS feeds hourly (or instantly via Sync Now)",
+                "Worker checks RSS feeds every 70 minutes (or on-demand anytime)",
                 "Multi-layer transcript extractor captures captions & translations",
                 "Gemini AI generates clean, structured summaries in real time",
               ].map((step, i) => (

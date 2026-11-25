@@ -1,13 +1,13 @@
 """
 YouTube Channel Tracker — Background Worker
 =============================================
-Main orchestrator script. Designed to run every hour via cron or on demand.
+Main orchestrator script. Runs every 70 minutes in --watch mode (or via cron / on-demand).
 
 Flow:
   1. Query tracked channels from Appwrite (resolving missing names/avatars)
   2. Fetch recent RSS uploads (or initial backfill for brand-new channels)
-  3. Include queued 'pending' videos (e.g. from UI Retry button) and optionally 'failed' (--retry-failed)
-  4. Deduplicate against already completed / actively processing videos
+  3. Include queued 'pending' videos, explicitly requested '--videos', and optionally '--retry-failed'
+  4. Deduplicate against already completed / actively processing videos (unless '--videos' forced)
   5. For each candidate video:
      a. Create or reuse document in Appwrite, mark 'processing'
      b. Fetch transcript (youtube-transcript-api -> yt-dlp fallback)
@@ -61,7 +61,9 @@ def _row_to_video_entry(row: dict) -> Optional[VideoEntry]:
         channel_id=cid,
         title=row.get("title", "Untitled"),
         published_at=row.get("published_at", datetime.now(timezone.utc).isoformat()),
-        thumbnail_url=row.get("thumbnail_url", f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg"),
+        thumbnail_url=row.get(
+            "thumbnail_url", f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg"
+        ),
         description="",
     )
 
@@ -71,6 +73,7 @@ def _row_to_video_entry(row: dict) -> Optional[VideoEntry]:
 def run_worker(
     retry_failed: bool = False,
     channel_id_filter: Optional[str] = None,
+    video_ids_override: Optional[list[str]] = None,
     backfill_override: Optional[int] = None,
     lookback_override: Optional[int] = None,
     limit: Optional[int] = None,
@@ -90,110 +93,140 @@ def run_worker(
         sys.exit(1)
 
     lookback_minutes = (
-        lookback_override if lookback_override is not None else worker_config.rss_lookback_minutes
+        lookback_override
+        if lookback_override is not None
+        else worker_config.rss_lookback_minutes
     )
     backfill_count = (
-        backfill_override if backfill_override is not None else worker_config.initial_backfill_count
+        backfill_override
+        if backfill_override is not None
+        else worker_config.initial_backfill_count
     )
 
     aw_client = AppwriteClient(aw_config)
     summarizer = Summarizer(gemini_config)
 
-    # Step 1: Get tracked channels
-    try:
-        channels = aw_client.get_all_channels(channel_id=channel_id_filter)
-    except Exception as e:
-        logger.critical(f"Failed to fetch channels: {e}")
-        sys.exit(1)
-
-    if not channels:
-        logger.info("No channels being tracked. Exiting.")
-        return
-
-    logger.info(f"Processing {len(channels)} tracked channel(s)")
-
-    channel_ids = [ch.get("channel_id", "") for ch in channels if ch.get("channel_id")]
-    empty_channels = aw_client.get_channels_without_videos(channel_ids) if backfill_count > 0 else set()
-    if empty_channels:
-        logger.info(f"{len(empty_channels)} channel(s) have no videos yet — will backfill up to {backfill_count} recent videos each")
-
-    # Step 2: Fetch RSS feeds and collect video candidates (keyed by video_id)
     candidates_by_id: dict[str, VideoEntry] = {}
+    channels: list[dict] = []
+    forced_ids: set[str] = set(video_ids_override or [])
 
-    for channel in channels:
-        channel_id = channel.get("channel_id", "")
-        rss_url = channel.get("rss_url", "")
-        channel_name = channel.get("name", channel_id)
-        channel_thumb = channel.get("thumbnail_url", "")
-
-        if not channel_id or not rss_url:
-            logger.warning(f"Skipping channel with missing data: {channel}")
-            continue
-
-        # Auto-resolve missing/raw channel name or missing avatar thumbnail
-        needs_name = (
-            not channel_name
-            or channel_name == channel_id
-            or channel_name == "Unknown Channel"
-        )
-        needs_thumb = not channel_thumb
-        if needs_name or needs_thumb:
-            resolved_title, resolved_thumb = get_channel_metadata(channel_id, rss_url)
-            new_name = resolved_title if (needs_name and resolved_title) else ""
-            new_thumb = resolved_thumb if (needs_thumb and resolved_thumb) else ""
-            if new_name or new_thumb:
-                if new_name:
-                    channel_name = new_name
-                aw_client.update_channel_metadata(
-                    channel_id, name=new_name, thumbnail_url=new_thumb
-                )
-
-        try:
-            if channel_id in empty_channels:
-                recent = fetch_recent_videos(
-                    channel_id=channel_id,
-                    rss_url=rss_url,
-                    lookback_minutes=None,
-                    max_videos=backfill_count,
-                )
-            else:
-                recent = fetch_recent_videos(
-                    channel_id=channel_id,
-                    rss_url=rss_url,
-                    lookback_minutes=lookback_minutes,
-                )
-
-            if recent:
-                logger.info(
-                    f"Channel '{channel_name}': {len(recent)} candidate video(s) from RSS"
-                )
-                for entry in recent:
-                    candidates_by_id[entry.video_id] = entry
-            else:
-                logger.debug(f"Channel '{channel_name}': no new videos in RSS window")
-        except Exception as e:
-            logger.error(f"Error fetching RSS for channel '{channel_name}': {e}")
-            continue
-
-    # Step 2b: Always pick up queued 'pending' videos from DB (e.g., UI Retry actions)
-    # and optionally 'failed' videos if --retry-failed is requested
-    retry_statuses = ["pending", "failed"] if retry_failed else ["pending"]
-    try:
-        db_queued = aw_client.get_videos_by_status(
-            retry_statuses, channel_id=channel_id_filter
-        )
-        if db_queued:
-            logger.info(
-                f"Found {len(db_queued)} video(s) in DB with status in {retry_statuses}"
-            )
-        for row in db_queued:
-            vid = row.get("video_id")
-            if vid and vid not in candidates_by_id:
-                entry = _row_to_video_entry(row)
+    if forced_ids:
+        logger.info(f"On-demand video mode for {len(forced_ids)} video(s): {sorted(forced_ids)}")
+        existing_rows = aw_client.get_videos_by_video_ids(list(forced_ids))
+        rows_by_vid = {r.get("video_id"): r for r in existing_rows if r.get("video_id")}
+        for vid in forced_ids:
+            if vid in rows_by_vid:
+                entry = _row_to_video_entry(rows_by_vid[vid])
                 if entry:
                     candidates_by_id[vid] = entry
-    except Exception as e:
-        logger.error(f"Error querying pending/failed videos: {e}")
+            else:
+                title, desc = fetch_video_metadata_from_watch(vid)
+                candidates_by_id[vid] = VideoEntry(
+                    video_id=vid,
+                    channel_id=channel_id_filter or "",
+                    title=title or f"Video {vid}",
+                    published_at=datetime.now(timezone.utc).isoformat(),
+                    thumbnail_url=f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg",
+                    description=desc,
+                )
+    else:
+        # Step 1: Get tracked channels
+        try:
+            channels = aw_client.get_all_channels(channel_id=channel_id_filter)
+        except Exception as e:
+            logger.critical(f"Failed to fetch channels: {e}")
+            sys.exit(1)
+
+        if not channels:
+            logger.info("No channels being tracked. Exiting.")
+            return
+
+        logger.info(f"Processing {len(channels)} tracked channel(s)")
+
+        channel_ids = [ch.get("channel_id", "") for ch in channels if ch.get("channel_id")]
+        empty_channels = (
+            aw_client.get_channels_without_videos(channel_ids)
+            if backfill_count > 0
+            else set()
+        )
+        if empty_channels:
+            logger.info(
+                f"{len(empty_channels)} channel(s) have no videos yet — will backfill up to {backfill_count} recent videos each"
+            )
+
+        # Step 2: Fetch RSS feeds and collect video candidates
+        for channel in channels:
+            channel_id = channel.get("channel_id", "")
+            rss_url = channel.get("rss_url", "")
+            channel_name = channel.get("name", channel_id)
+            channel_thumb = channel.get("thumbnail_url", "")
+
+            if not channel_id or not rss_url:
+                logger.warning(f"Skipping channel with missing data: {channel}")
+                continue
+
+            needs_name = (
+                not channel_name
+                or channel_name == channel_id
+                or channel_name == "Unknown Channel"
+            )
+            needs_thumb = not channel_thumb
+            if needs_name or needs_thumb:
+                resolved_title, resolved_thumb = get_channel_metadata(channel_id, rss_url)
+                new_name = resolved_title if (needs_name and resolved_title) else ""
+                new_thumb = resolved_thumb if (needs_thumb and resolved_thumb) else ""
+                if new_name or new_thumb:
+                    if new_name:
+                        channel_name = new_name
+                    aw_client.update_channel_metadata(
+                        channel_id, name=new_name, thumbnail_url=new_thumb
+                    )
+
+            try:
+                if channel_id in empty_channels:
+                    recent = fetch_recent_videos(
+                        channel_id=channel_id,
+                        rss_url=rss_url,
+                        lookback_minutes=None,
+                        max_videos=backfill_count,
+                    )
+                else:
+                    recent = fetch_recent_videos(
+                        channel_id=channel_id,
+                        rss_url=rss_url,
+                        lookback_minutes=lookback_minutes,
+                    )
+
+                if recent:
+                    logger.info(
+                        f"Channel '{channel_name}': {len(recent)} candidate video(s) from RSS"
+                    )
+                    for entry in recent:
+                        candidates_by_id[entry.video_id] = entry
+                else:
+                    logger.debug(f"Channel '{channel_name}': no new videos in RSS window")
+            except Exception as e:
+                logger.error(f"Error fetching RSS for channel '{channel_name}': {e}")
+                continue
+
+        # Step 2b: Always pick up queued 'pending' videos from DB
+        retry_statuses = ["pending", "failed"] if retry_failed else ["pending"]
+        try:
+            db_queued = aw_client.get_videos_by_status(
+                retry_statuses, channel_id=channel_id_filter
+            )
+            if db_queued:
+                logger.info(
+                    f"Found {len(db_queued)} video(s) in DB with status in {retry_statuses}"
+                )
+            for row in db_queued:
+                vid = row.get("video_id")
+                if vid and vid not in candidates_by_id:
+                    entry = _row_to_video_entry(row)
+                    if entry:
+                        candidates_by_id[vid] = entry
+        except Exception as e:
+            logger.error(f"Error querying pending/failed videos: {e}")
 
     all_new_videos = list(candidates_by_id.values())
     if not all_new_videos:
@@ -203,31 +236,38 @@ def run_worker(
 
     logger.info(f"Total candidate videos before deduplication: {len(all_new_videos)}")
 
-    # Step 3: Deduplicate against completed / actively processing videos in Appwrite
-    candidate_ids = [v.video_id for v in all_new_videos]
-    try:
-        existing_ids = aw_client.get_existing_video_ids(candidate_ids)
-    except Exception as e:
-        logger.error(f"Failed to check existing videos: {e}")
-        existing_ids = set()
+    # Step 3: Deduplicate unless forced on-demand
+    if forced_ids:
+        new_videos = all_new_videos
+    else:
+        candidate_ids = [v.video_id for v in all_new_videos]
+        try:
+            existing_ids = aw_client.get_existing_video_ids(candidate_ids)
+        except Exception as e:
+            logger.error(f"Failed to check existing videos: {e}")
+            existing_ids = set()
 
-    new_videos = [v for v in all_new_videos if v.video_id not in existing_ids]
-    skipped_count = len(all_new_videos) - len(new_videos)
-
-    if skipped_count > 0:
-        logger.info(f"Skipping {skipped_count} already-completed/active video(s)")
+        new_videos = [v for v in all_new_videos if v.video_id not in existing_ids]
+        skipped_count = len(all_new_videos) - len(new_videos)
+        if skipped_count > 0:
+            logger.info(f"Skipping {skipped_count} already-completed/active video(s)")
 
     if not new_videos:
         elapsed = time.time() - start_time
         logger.info(f"All candidate videos are already processed. Done in {elapsed:.1f}s")
         return
 
-    # Sort newest first
     new_videos.sort(key=lambda v: v.published_at, reverse=True)
     if limit is not None and limit > 0:
         new_videos = new_videos[:limit]
 
     logger.info(f"Processing {len(new_videos)} video(s)")
+
+    existing_docs_map = {}
+    if forced_ids:
+        for row in aw_client.get_videos_by_video_ids([v.video_id for v in new_videos]):
+            if row.get("video_id") and row.get("$id"):
+                existing_docs_map[row["video_id"]] = row["$id"]
 
     # Step 4: Process each video
     success_count = 0
@@ -238,33 +278,35 @@ def run_worker(
         logger.info(f"[{idx}/{len(new_videos)}] Processing: {video.title} ({video.video_id})")
         logger.info(f"{'─' * 50}")
 
-        existing_retryable_id = aw_client.get_retryable_video_doc_id(video.video_id)
-
-        if existing_retryable_id:
-            document_id = existing_retryable_id
-            logger.info(
-                f"Using existing pending/retryable row for {video.video_id} (doc: {document_id})"
-            )
+        if video.video_id in existing_docs_map:
+            document_id = existing_docs_map[video.video_id]
         else:
-            try:
-                doc = aw_client.create_video_document(
-                    video_id=video.video_id,
-                    channel_id=video.channel_id,
-                    title=video.title,
-                    published_at=video.published_at,
-                    thumbnail_url=video.thumbnail_url,
-                    status="pending",
+            existing_retryable_id = aw_client.get_retryable_video_doc_id(video.video_id)
+            if existing_retryable_id:
+                document_id = existing_retryable_id
+                logger.info(
+                    f"Using existing pending/retryable row for {video.video_id} (doc: {document_id})"
                 )
-            except Exception as e:
-                logger.error(f"Failed to create document for {video.video_id}: {e}")
-                fail_count += 1
-                continue
+            else:
+                try:
+                    doc = aw_client.create_video_document(
+                        video_id=video.video_id,
+                        channel_id=video.channel_id or "unknown",
+                        title=video.title,
+                        published_at=video.published_at,
+                        thumbnail_url=video.thumbnail_url,
+                        status="pending",
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to create document for {video.video_id}: {e}")
+                    fail_count += 1
+                    continue
 
-            if doc is None:
-                logger.info(f"Video {video.video_id} already exists, skipping")
-                continue
+                if doc is None:
+                    logger.info(f"Video {video.video_id} already exists, skipping")
+                    continue
 
-            document_id = doc["$id"]
+                document_id = doc["$id"]
 
         try:
             aw_client.mark_video_processing(document_id)
@@ -381,6 +423,12 @@ def _parse_args() -> argparse.Namespace:
         help="Only process a specific YouTube channel_id",
     )
     parser.add_argument(
+        "--videos",
+        type=str,
+        default=None,
+        help="Comma-separated video IDs to process/re-summarize on demand",
+    )
+    parser.add_argument(
         "--backfill",
         type=int,
         default=None,
@@ -398,19 +446,55 @@ def _parse_args() -> argparse.Namespace:
         default=None,
         help="Max number of videos to process in this run",
     )
+    parser.add_argument(
+        "--watch",
+        action="store_true",
+        help="Run continuously in a loop every --interval-minutes (default 70)",
+    )
+    parser.add_argument(
+        "--interval-minutes",
+        type=int,
+        default=70,
+        help="Interval in minutes between cycles when using --watch (default: 70)",
+    )
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     try:
         args = _parse_args()
-        run_worker(
-            retry_failed=args.retry_failed,
-            channel_id_filter=args.channel,
-            backfill_override=args.backfill,
-            lookback_override=args.lookback,
-            limit=args.limit,
+        video_ids_list = (
+            [v.strip() for v in args.videos.split(",") if v.strip()]
+            if args.videos
+            else None
         )
+
+        if args.watch:
+            interval_mins = max(1, args.interval_minutes)
+            logger.info(f"Watch mode enabled: running every {interval_mins} minute(s)")
+            while True:
+                try:
+                    run_worker(
+                        retry_failed=args.retry_failed,
+                        channel_id_filter=args.channel,
+                        video_ids_override=video_ids_list,
+                        backfill_override=args.backfill,
+                        lookback_override=args.lookback,
+                        limit=args.limit,
+                    )
+                except Exception as cycle_err:
+                    logger.error(f"Worker cycle failed: {cycle_err}", exc_info=True)
+                logger.info(f"Sleeping {interval_mins} minute(s) until next worker cycle...")
+                time.sleep(interval_mins * 60)
+        else:
+            run_worker(
+                retry_failed=args.retry_failed,
+                channel_id_filter=args.channel,
+                video_ids_override=video_ids_list,
+                backfill_override=args.backfill,
+                lookback_override=args.lookback,
+                limit=args.limit,
+            )
     except KeyboardInterrupt:
         logger.info("Worker interrupted by user")
         sys.exit(0)

@@ -6,7 +6,7 @@ import { useSummaries } from "../hooks/useSummaries";
 import Layout from "../components/Layout";
 import StatsBar from "../components/StatsBar";
 import SummaryFeed from "../components/SummaryFeed";
-import { ArrowRight, Plus, Sparkles, RefreshCw } from "lucide-react";
+import { ArrowRight, Plus, Sparkles, RefreshCw, ListPlus } from "lucide-react";
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -27,6 +27,7 @@ export default function DashboardPage() {
     loadMore,
     refresh,
     retrySummary,
+    setRequestModalOpen,
   } = useSummaries();
 
   useEffect(() => {
@@ -71,15 +72,27 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          {channels.length === 0 && (
-            <Link
-              to="/channels"
-              className="btn-primary shrink-0 self-start shadow-[0_0_20px_rgba(59,130,246,0.3)]"
+          <div className="flex flex-wrap items-center gap-3 shrink-0 self-start">
+            <button
+              id="dashboard-request-summary-btn"
+              type="button"
+              onClick={() => setRequestModalOpen(true)}
+              className="btn-primary shadow-[0_0_20px_rgba(59,130,246,0.3)]"
             >
-              <Plus className="w-4 h-4" />
-              Track your first channel
-            </Link>
-          )}
+              <ListPlus className="w-4 h-4" />
+              Select Videos &amp; Request Summary
+            </button>
+
+            {channels.length === 0 && (
+              <Link
+                to="/channels"
+                className="btn-secondary"
+              >
+                <Plus className="w-4 h-4" />
+                Track your first channel
+              </Link>
+            )}
+          </div>
         </div>
       </div>
 

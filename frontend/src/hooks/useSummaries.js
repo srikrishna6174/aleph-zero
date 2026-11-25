@@ -1,7 +1,7 @@
 /**
  * useSummaries Hook
  * ==================
- * Consumes video summaries, stats, pagination, and Realtime sync from TrackerProvider.
+ * Consumes video summaries, stats, pagination, on-demand requests, and Realtime sync.
  */
 
 import { useContext } from "react";
@@ -21,6 +21,11 @@ export function useSummaries() {
     loadMore: ctx.loadMore,
     refresh: ctx.refreshSummaries,
     retrySummary: ctx.retrySummary,
+    fetchChannelVideos: ctx.fetchChannelVideos,
+    inspectVideoForSummary: ctx.inspectVideoForSummary,
+    requestVideoSummaries: ctx.requestVideoSummaries,
+    requestModalOpen: ctx.requestModalOpen,
+    setRequestModalOpen: ctx.setRequestModalOpen,
     localSyncSupported: ctx.localSyncSupported,
     syncRunning: ctx.syncRunning,
     syncNow: ctx.syncNow,

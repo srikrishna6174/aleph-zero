@@ -253,7 +253,7 @@ export default function AuthForm({ mode = "login", onToggleMode }) {
         {/* Feature chips */}
         <div className="mt-7 flex flex-wrap justify-center gap-2.5">
           {[
-            "Hourly summaries",
+            "70-min auto sync",
             "Multi-layer transcripts",
             "Gemini 3.6 Flash",
           ].map((chip) => (

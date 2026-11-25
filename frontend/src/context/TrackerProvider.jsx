@@ -2,7 +2,8 @@
  * TrackerProvider
  * ===============
  * Centralized state provider for channels, summaries, accurate global stats,
- * Appwrite Realtime subscriptions, YouTube URL/handle resolution, and local worker sync.
+ * Appwrite Realtime subscriptions, YouTube URL/handle resolution, on-demand
+ * video selection + summary generation, and local worker sync.
  */
 
 import {
@@ -14,6 +15,7 @@ import {
 } from "react";
 import { Channel, ID, Query } from "appwrite";
 import {
+  account,
   client,
   tablesDB,
   DATABASE_ID,
@@ -65,7 +67,6 @@ function parseChannelInput(raw) {
     return { error: "Input cannot be empty.", type: "invalid" };
   }
 
-  // 1. Raw UC… channel ID (exact 24-char)
   if (/^UC[\w-]{22}$/.test(trimmed)) {
     return { channelId: trimmed, type: "id" };
   }
@@ -74,7 +75,6 @@ function parseChannelInput(raw) {
     .replace(/^https?:\/\//i, "")
     .replace(/^www\./i, "");
 
-  // 2. youtube.com/channel/UC…
   const channelPathMatch = withoutProto.match(
     /youtube\.com\/channel\/(UC[\w-]{22})/i,
   );
@@ -82,13 +82,11 @@ function parseChannelInput(raw) {
     return { channelId: channelPathMatch[1], type: "id" };
   }
 
-  // 3. YouTube Video, Shorts, Live, or Embed URL
   const videoId = extractVideoId(trimmed);
   if (videoId) {
     return { videoId, type: "video" };
   }
 
-  // 4. youtube.com/@handle
   const atHandleMatch = withoutProto.match(/youtube\.com\/@([\w.-]+)/i);
   if (atHandleMatch) {
     return {
@@ -98,13 +96,11 @@ function parseChannelInput(raw) {
     };
   }
 
-  // 5. youtube.com/c/handle OR youtube.com/user/handle
   const cUserMatch = withoutProto.match(/youtube\.com\/(?:c|user)\/([\w.-]+)/i);
   if (cUserMatch) {
     return { handle: cUserMatch[1], handleRaw: cUserMatch[1], type: "handle" };
   }
 
-  // 6. youtube.com/customname
   const customMatch = withoutProto.match(/youtube\.com\/([\w.-]+)/i);
   if (customMatch) {
     const seg = customMatch[1];
@@ -113,12 +109,10 @@ function parseChannelInput(raw) {
     }
   }
 
-  // 7. Bare @handle
   if (trimmed.startsWith("@") && trimmed.length > 1) {
     return { handle: trimmed.slice(1), handleRaw: trimmed, type: "handle" };
   }
 
-  // 8. Bare name with no slashes and no domain
   if (
     !trimmed.includes("/") &&
     !withoutProto.includes("youtube.com") &&
@@ -221,14 +215,15 @@ export function TrackerProvider({ children }) {
     failed: 0,
   });
 
-  // Local worker sync state
+  // Local worker sync + modal state
   const [localSyncSupported, setLocalSyncSupported] = useState(false);
   const [syncRunning, setSyncRunning] = useState(false);
+  const [requestModalOpen, setRequestModalOpen] = useState(false);
 
   const offsetRef = useRef(0);
   const syncPollRef = useRef(null);
+  const watchPollsRef = useRef(new Set());
 
-  // Probe local worker sync availability once on mount
   useEffect(() => {
     let active = true;
     fetch("/api/sync-status")
@@ -432,7 +427,6 @@ export function TrackerProvider({ children }) {
         setSummariesLoading(false);
       }
     },
-    // channelIdsKey triggers refetch automatically whenever subscribed channels change
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [user, channelsInitialized, channelIdsKey, fetchStats],
   );
@@ -491,10 +485,9 @@ export function TrackerProvider({ children }) {
           if (isCreate) {
             setSummaries((prev) => {
               if (prev.some((s) => s.$id === payload.$id)) return prev;
-              const next = [payload, ...prev].sort((a, b) =>
+              return [payload, ...prev].sort((a, b) =>
                 (b.published_at || "").localeCompare(a.published_at || ""),
               );
-              return next;
             });
             fetchStats(stableChannelIdsRef.current);
           } else if (isUpdate) {
@@ -516,6 +509,68 @@ export function TrackerProvider({ children }) {
       unsubscribe();
     };
   }, [user, channelIdsKey, fetchStats]);
+
+  // ── Poll specific video IDs until settled (resilience fallback to Realtime)
+  const watchVideosUntilSettled = useCallback(
+    (videoIds) => {
+      if (!videoIds || videoIds.length === 0) return;
+      let attempts = 0;
+      const timer = setInterval(async () => {
+        attempts += 1;
+        try {
+          const res = await tablesDB.listRows({
+            databaseId: DATABASE_ID,
+            tableId: VIDEOS_TABLE_ID,
+            queries: [Query.equal("video_id", videoIds), Query.limit(50)],
+          });
+          const rows = res.rows || [];
+          if (rows.length > 0) {
+            setSummaries((prev) => {
+              const byId = new Map(rows.map((r) => [r.$id ?? r.id, r]));
+              const updated = prev.map((item) => {
+                const key = item.$id ?? item.id;
+                return byId.has(key) ? byId.get(key) : item;
+              });
+              // Prepend any newly created rows not yet in `prev`
+              const existingKeys = new Set(updated.map((u) => u.$id ?? u.id));
+              const extras = rows.filter(
+                (r) => !existingKeys.has(r.$id ?? r.id),
+              );
+              return [...extras, ...updated].sort((a, b) =>
+                (b.published_at || "").localeCompare(a.published_at || ""),
+              );
+            });
+            fetchStats(stableChannelIdsRef.current);
+          }
+
+          const stillActive = rows.some(
+            (r) => r.status === "pending" || r.status === "processing",
+          );
+          if ((!stillActive && rows.length >= videoIds.length) || attempts >= 40) {
+            clearInterval(timer);
+            watchPollsRef.current.delete(timer);
+            setSyncRunning(false);
+          }
+        } catch {
+          if (attempts >= 40) {
+            clearInterval(timer);
+            watchPollsRef.current.delete(timer);
+          }
+        }
+      }, 3000);
+      watchPollsRef.current.add(timer);
+    },
+    [fetchStats],
+  );
+
+  useEffect(() => {
+    const timers = watchPollsRef.current;
+    return () => {
+      if (syncPollRef.current) clearInterval(syncPollRef.current);
+      for (const t of timers) clearInterval(t);
+      timers.clear();
+    };
+  }, []);
 
   // ── Local Worker Sync Trigger ─────────────────────────────────────────────
   const syncNow = useCallback(
@@ -568,13 +623,7 @@ export function TrackerProvider({ children }) {
     [fetchChannels, fetchSummaries],
   );
 
-  useEffect(() => {
-    return () => {
-      if (syncPollRef.current) clearInterval(syncPollRef.current);
-    };
-  }, []);
-
-  // ── Add Channel (Supports ID, URL, @handle, /c/, /user/, Video URL, Presets)
+  // ── Add Channel ───────────────────────────────────────────────────────────
   const addChannel = useCallback(
     async (input, customName = "") => {
       if (!user) throw new Error("Must be logged in to track channels.");
@@ -591,7 +640,6 @@ export function TrackerProvider({ children }) {
       let resolvedName = customName.trim() || null;
       let thumbnailUrl = "";
 
-      // 1. Check popular presets first
       const normalizedInput = input.trim().toLowerCase().replace(/^@/, "");
       const matchedPreset = POPULAR_CHANNELS.find(
         (p) =>
@@ -607,14 +655,11 @@ export function TrackerProvider({ children }) {
 
       setChannelsLoading(true);
       try {
-        // 2. If we still need to resolve channelId (handle or video URL) OR want metadata (name + avatar)
         const needsResolve = !channelId;
         const needsMetadata = !resolvedName || !thumbnailUrl;
 
         if (needsResolve || needsMetadata) {
           const targetForResolve = channelId || input.trim();
-
-          // Try local Vite/backend resolver first (resolves ANY handle, /c/, /user/, video URL + avatar!)
           const localResolved = await resolveViaLocalEndpoint(targetForResolve);
 
           if (localResolved && !localResolved.error && localResolved.channelId) {
@@ -626,7 +671,6 @@ export function TrackerProvider({ children }) {
               thumbnailUrl = localResolved.thumbnailUrl;
             }
           } else if (needsResolve) {
-            // Try YouTube Data API v3 if key configured
             const apiKey = import.meta.env.VITE_YOUTUBE_API_KEY;
             if (parsed.type === "handle" && apiKey) {
               const apiResolved = await resolveHandleViaYouTubeAPI(
@@ -640,7 +684,6 @@ export function TrackerProvider({ children }) {
                 thumbnailUrl = apiResolved.thumbnailUrl;
               }
             } else if (parsed.type === "video") {
-              // Browser oEmbed fallback for video URLs
               const oembedUrl = `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${parsed.videoId}&format=json`;
               const oembedRes = await fetch(oembedUrl);
               if (oembedRes.ok) {
@@ -693,7 +736,6 @@ export function TrackerProvider({ children }) {
 
         const rssUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
 
-        // Check existing subscription
         const existingSubs = await tablesDB.listRows({
           databaseId: DATABASE_ID,
           tableId: SUBSCRIPTIONS_TABLE_ID,
@@ -708,7 +750,6 @@ export function TrackerProvider({ children }) {
           throw new Error("You are already subscribed to this channel.");
         }
 
-        // Upsert channel row
         let channelRow;
         const existingChannels = await tablesDB.listRows({
           databaseId: DATABASE_ID,
@@ -757,7 +798,6 @@ export function TrackerProvider({ children }) {
           });
         }
 
-        // Create user subscription
         await tablesDB.createRow({
           databaseId: DATABASE_ID,
           tableId: SUBSCRIPTIONS_TABLE_ID,
@@ -770,7 +810,6 @@ export function TrackerProvider({ children }) {
 
         await fetchChannels();
 
-        // If running alongside local dev server, kick off an immediate backfill sync for this channel
         if (localSyncSupported) {
           syncNow({ channelId });
         }
@@ -854,6 +893,273 @@ export function TrackerProvider({ children }) {
     [user],
   );
 
+  // ── Browse Channel Videos / Inspect Video URL ─────────────────────────────
+  const fetchChannelVideos = useCallback(async (channelId) => {
+    const res = await fetch(
+      `/api/channel-videos?channelId=${encodeURIComponent(channelId)}`,
+    );
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data?.error || "Failed to load channel videos.");
+    }
+    const videos = data.videos || [];
+    if (videos.length === 0) return [];
+
+    // Enrich with existing Appwrite video status
+    try {
+      const ids = videos.map((v) => v.videoId);
+      const existing = await tablesDB.listRows({
+        databaseId: DATABASE_ID,
+        tableId: VIDEOS_TABLE_ID,
+        queries: [Query.equal("video_id", ids), Query.limit(50)],
+      });
+      const byVid = new Map(
+        (existing.rows || []).map((r) => [r.video_id, r]),
+      );
+      return videos.map((v) => {
+        const row = byVid.get(v.videoId);
+        return row
+          ? {
+              ...v,
+              docId: row.$id ?? row.id,
+              status: row.status,
+              ai_summary: row.ai_summary || "",
+              error_message: row.error_message || "",
+            }
+          : { ...v, status: "new" };
+      });
+    } catch {
+      return videos.map((v) => ({ ...v, status: "new" }));
+    }
+  }, []);
+
+  const inspectVideoForSummary = useCallback(async (videoUrl) => {
+    const res = await fetch(
+      `/api/channel-videos?videoUrl=${encodeURIComponent(videoUrl)}`,
+    );
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.videos?.length) {
+      throw new Error(data?.error || "Could not inspect that YouTube video URL.");
+    }
+    const v = data.videos[0];
+    try {
+      const existing = await tablesDB.listRows({
+        databaseId: DATABASE_ID,
+        tableId: VIDEOS_TABLE_ID,
+        queries: [Query.equal("video_id", [v.videoId]), Query.limit(1)],
+      });
+      const row = existing.rows?.[0];
+      if (row) {
+        return {
+          ...v,
+          docId: row.$id ?? row.id,
+          status: row.status,
+          ai_summary: row.ai_summary || "",
+          error_message: row.error_message || "",
+        };
+      }
+    } catch {
+      // ignore
+    }
+    return { ...v, status: "new" };
+  }, []);
+
+  // ── Request Immediate Summary Generation for Selected Videos ──────────────
+  const requestVideoSummaries = useCallback(
+    async (selectedVideos = []) => {
+      if (!user || !Array.isArray(selectedVideos) || selectedVideos.length === 0) {
+        throw new Error("Select at least one video to summarize.");
+      }
+
+      const preparedVideos = [];
+      const channelsToSubscribe = new Set();
+
+      for (const item of selectedVideos) {
+        const videoId = item.videoId || item.video_id;
+        if (!videoId) continue;
+
+        const channelId = item.channelId || item.channel_id || "";
+        if (channelId && !stableChannelIdsRef.current.includes(channelId)) {
+          channelsToSubscribe.add({
+            channelId,
+            name: item.channelName || channelId,
+          });
+        }
+
+        // Ensure channel exists if user pasted a video from a new channel
+        if (channelId) {
+          try {
+            const chCheck = await tablesDB.listRows({
+              databaseId: DATABASE_ID,
+              tableId: CHANNELS_TABLE_ID,
+              queries: [Query.equal("channel_id", [channelId]), Query.limit(1)],
+            });
+            if (!chCheck.rows?.length) {
+              await tablesDB.createRow({
+                databaseId: DATABASE_ID,
+                tableId: CHANNELS_TABLE_ID,
+                rowId: ID.unique(),
+                data: {
+                  channel_id: channelId,
+                  name: item.channelName || channelId,
+                  rss_url: `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`,
+                  thumbnail_url: "",
+                },
+              });
+            }
+            const subCheck = await tablesDB.listRows({
+              databaseId: DATABASE_ID,
+              tableId: SUBSCRIPTIONS_TABLE_ID,
+              queries: [
+                Query.equal("user_id", user.$id),
+                Query.equal("channel_id", channelId),
+                Query.limit(1),
+              ],
+            });
+            if (!subCheck.rows?.length) {
+              await tablesDB.createRow({
+                databaseId: DATABASE_ID,
+                tableId: SUBSCRIPTIONS_TABLE_ID,
+                rowId: ID.unique(),
+                data: { user_id: user.$id, channel_id: channelId },
+              });
+            }
+          } catch {
+            // continue even if channel upsert skipped
+          }
+        }
+
+        // Upsert video row in Appwrite with status "pending"
+        let docRow = null;
+        try {
+          const existing = await tablesDB.listRows({
+            databaseId: DATABASE_ID,
+            tableId: VIDEOS_TABLE_ID,
+            queries: [Query.equal("video_id", [videoId]), Query.limit(1)],
+          });
+
+          if (existing.rows?.length > 0) {
+            const rowId = existing.rows[0].$id ?? existing.rows[0].id;
+            docRow = await tablesDB.updateRow({
+              databaseId: DATABASE_ID,
+              tableId: VIDEOS_TABLE_ID,
+              rowId,
+              data: {
+                status: "pending",
+                error_message: "",
+              },
+            });
+          } else {
+            docRow = await tablesDB.createRow({
+              databaseId: DATABASE_ID,
+              tableId: VIDEOS_TABLE_ID,
+              rowId: ID.unique(),
+              data: {
+                video_id: videoId,
+                channel_id: channelId || "unknown",
+                title: (item.title || `Video ${videoId}`).slice(0, 510),
+                published_at:
+                  item.publishedAt ||
+                  item.published_at ||
+                  new Date().toISOString(),
+                thumbnail_url: (
+                  item.thumbnailUrl ||
+                  item.thumbnail_url ||
+                  `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
+                ).slice(0, 510),
+                ai_summary: "",
+                status: "pending",
+                error_message: "",
+              },
+            });
+          }
+        } catch (err) {
+          console.error(`Failed queueing video ${videoId}:`, err);
+        }
+
+        preparedVideos.push({
+          videoId,
+          channelId,
+          title: item.title || `Video ${videoId}`,
+          publishedAt:
+            item.publishedAt || item.published_at || new Date().toISOString(),
+          thumbnailUrl:
+            item.thumbnailUrl ||
+            item.thumbnail_url ||
+            `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+          description: item.description || "",
+          docId: docRow?.$id ?? docRow?.id ?? item.docId ?? "",
+        });
+
+        if (docRow) {
+          setSummaries((prev) => {
+            const rid = docRow.$id ?? docRow.id;
+            const exists = prev.some((s) => (s.$id ?? s.id) === rid);
+            if (exists) {
+              return prev.map((s) =>
+                (s.$id ?? s.id) === rid
+                  ? { ...s, ...docRow, status: "pending", error_message: "" }
+                  : s,
+              );
+            }
+            return [docRow, ...prev].sort((a, b) =>
+              (b.published_at || "").localeCompare(a.published_at || ""),
+            );
+          });
+        }
+      }
+
+      if (channelsToSubscribe.size > 0) {
+        await fetchChannels();
+      }
+      fetchStats(stableChannelIdsRef.current);
+
+      let jwt = "";
+      try {
+        const jwtRes = await account.createJWT();
+        jwt = jwtRes?.jwt || "";
+      } catch {
+        // optional
+      }
+
+      // Trigger backend /api/request-summary (local worker OR Vercel LLM runner)
+      setSyncRunning(true);
+      const videoIds = preparedVideos.map((v) => v.videoId);
+      let apiResult = { mode: "queued" };
+
+      try {
+        const apiRes = await fetch("/api/request-summary", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ videos: preparedVideos, jwt }),
+        });
+        const ct = apiRes.headers.get("content-type") || "";
+        if (ct.includes("application/json")) {
+          apiResult = await apiRes.json();
+        }
+      } catch {
+        // Fallback to queued state if offline
+      }
+
+      if (apiResult.mode === "instant") {
+        await fetchSummaries(true);
+        setSyncRunning(false);
+      } else if (apiResult.mode === "worker") {
+        watchVideosUntilSettled(videoIds);
+      } else {
+        setSyncRunning(false);
+        watchVideosUntilSettled(videoIds);
+      }
+
+      return {
+        ...apiResult,
+        videoIds,
+        videos: preparedVideos,
+      };
+    },
+    [user, fetchChannels, fetchStats, fetchSummaries, watchVideosUntilSettled],
+  );
+
   // ── Pagination & Retry ────────────────────────────────────────────────────
   const loadMore = useCallback(() => {
     if (!summariesLoading && hasMore) {
@@ -868,6 +1174,7 @@ export function TrackerProvider({ children }) {
   const retrySummary = useCallback(
     async (documentId) => {
       try {
+        const target = summaries.find((s) => (s.$id ?? s.id) === documentId);
         await tablesDB.updateRow({
           databaseId: DATABASE_ID,
           tableId: VIDEOS_TABLE_ID,
@@ -891,7 +1198,44 @@ export function TrackerProvider({ children }) {
           return next;
         });
 
-        if (localSyncSupported) {
+        if (target?.video_id) {
+          let jwt = "";
+          try {
+            const jwtRes = await account.createJWT();
+            jwt = jwtRes?.jwt || "";
+          } catch {
+            // optional
+          }
+          fetch("/api/request-summary", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              videos: [
+                {
+                  videoId: target.video_id,
+                  channelId: target.channel_id,
+                  title: target.title,
+                  publishedAt: target.published_at,
+                  thumbnailUrl: target.thumbnail_url,
+                  docId: documentId,
+                },
+              ],
+              jwt,
+            }),
+          })
+            .then((r) => r.json().catch(() => ({})))
+            .then((resData) => {
+              if (resData?.mode === "instant") {
+                fetchSummaries(true);
+              } else if (resData?.mode === "worker") {
+                setSyncRunning(true);
+                watchVideosUntilSettled([target.video_id]);
+              } else if (resData?.mode === "queued") {
+                watchVideosUntilSettled([target.video_id]);
+              }
+            })
+            .catch(() => {});
+        } else if (localSyncSupported) {
           syncNow();
         }
         return true;
@@ -900,13 +1244,20 @@ export function TrackerProvider({ children }) {
         return false;
       }
     },
-    [fetchStats, localSyncSupported, syncNow, stats.total],
+    [
+      summaries,
+      fetchStats,
+      fetchSummaries,
+      localSyncSupported,
+      syncNow,
+      stats.total,
+      watchVideosUntilSettled,
+    ],
   );
 
   const clearChannelsError = useCallback(() => setChannelsError(null), []);
 
   const value = {
-    // Channels
     channels,
     channelsLoading,
     channelsInitialized,
@@ -918,16 +1269,21 @@ export function TrackerProvider({ children }) {
     refreshChannels: fetchChannels,
     popularPresets: POPULAR_CHANNELS,
 
-    // Summaries & Stats
     summaries,
-    summariesLoading:
-      summariesLoading || (!!user && !channelsInitialized),
+    summariesLoading: summariesLoading || (!!user && !channelsInitialized),
     hasMore,
     summariesError,
     stats,
     loadMore,
     refreshSummaries,
     retrySummary,
+
+    // On-demand video selection + instant summary
+    fetchChannelVideos,
+    inspectVideoForSummary,
+    requestVideoSummaries,
+    requestModalOpen,
+    setRequestModalOpen,
 
     // Local worker sync
     localSyncSupported,

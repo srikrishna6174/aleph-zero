@@ -200,6 +200,23 @@ class AppwriteClient:
 
         return videos
 
+    def get_videos_by_video_ids(self, video_ids: list[str]) -> list[dict]:
+        """Fetch video rows matching any video_id in `video_ids`."""
+        if not video_ids:
+            return []
+        videos: list[dict] = []
+        batch_size = 100
+        for i in range(0, len(video_ids), batch_size):
+            batch = video_ids[i : i + batch_size]
+            response = self._db.list_rows(
+                database_id=self._config.database_id,
+                table_id=self._config.videos_collection_id,
+                queries=[Query.equal("video_id", batch), Query.limit(batch_size)],
+            )
+            for doc in _extract_rows(response):
+                videos.append(_row_to_dict(doc))
+        return videos
+
     def get_retryable_video_doc_id(self, video_id: str) -> Optional[str]:
         """
         Look up a video row by video_id and return its document $id if it is

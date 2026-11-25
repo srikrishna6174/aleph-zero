@@ -94,6 +94,9 @@ export default function SummaryCard({
   channelAvatar,
   index = 0,
   onRetry,
+  selectable = false,
+  selected = false,
+  onToggleSelect,
 }) {
   const [expanded, setExpanded] = useState(false);
   const [showErrorDetails, setShowErrorDetails] = useState(false);
@@ -148,7 +151,9 @@ export default function SummaryCard({
 
   return (
     <article
-      className="animate-fade-in-up rounded-2xl overflow-hidden glass-card group"
+      className={`animate-fade-in-up rounded-2xl overflow-hidden glass-card group ${
+        selectable && selected ? "ring-2 ring-blue-500/70 border-blue-500/50" : ""
+      }`}
       style={{ animationDelay: `${(index % 10) * 0.04}s` }}
     >
       {/* Top status stripe */}
@@ -156,6 +161,22 @@ export default function SummaryCard({
 
       {/* Video header row */}
       <div className="flex flex-col sm:flex-row gap-5 p-5 sm:p-6">
+        {selectable && onToggleSelect && (
+          <div className="flex items-start pt-1">
+            <button
+              type="button"
+              onClick={() => onToggleSelect(video)}
+              aria-label={`Select ${title}`}
+              className={`w-5 h-5 rounded-md flex items-center justify-center border cursor-pointer transition-colors ${
+                selected
+                  ? "bg-blue-600 border-blue-500 text-white"
+                  : "bg-black/40 border-white/25 hover:border-blue-400"
+              }`}
+            >
+              {selected && <Check className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+        )}
         {videoId && (
           <a
             href={videoUrl}
@@ -238,6 +259,7 @@ export default function SummaryCard({
                   <img
                     src={channelAvatar}
                     alt={channelName}
+                    referrerPolicy="no-referrer"
                     className="w-4 h-4 rounded-full object-cover"
                     loading="lazy"
                   />

@@ -6,6 +6,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveYouTubeChannel } from "./server/youtubeResolver.js";
+import {
+  fetchChannelFeedVideos,
+  inspectVideoUrl,
+} from "./server/youtubeFeed.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const workerDir = path.resolve(__dirname, "..", "worker");
@@ -25,7 +29,7 @@ function readJsonBody(req) {
     let raw = "";
     req.on("data", (chunk) => {
       raw += chunk;
-      if (raw.length > 16384) req.destroy();
+      if (raw.length > 65536) req.destroy();
     });
     req.on("end", () => {
       try {
@@ -62,6 +66,123 @@ function attachTubeDigestMiddleware(middlewares) {
         }),
       );
     }
+  });
+
+  middlewares.use("/api/channel-videos", async (req, res) => {
+    res.setHeader("Content-Type", "application/json");
+    try {
+      const reqUrl = new URL(req.url, "http://localhost");
+      const channelId = (reqUrl.searchParams.get("channelId") || "").trim();
+      const videoUrl = (reqUrl.searchParams.get("videoUrl") || "").trim();
+
+      if (videoUrl) {
+        const video = await inspectVideoUrl(videoUrl);
+        res.statusCode = 200;
+        res.end(JSON.stringify({ videos: [video] }));
+        return;
+      }
+
+      if (channelId) {
+        const videos = await fetchChannelFeedVideos(channelId);
+        res.statusCode = 200;
+        res.end(JSON.stringify({ videos }));
+        return;
+      }
+
+      res.statusCode = 400;
+      res.end(
+        JSON.stringify({
+          error: "Provide either 'channelId' or 'videoUrl' query parameter.",
+        }),
+      );
+    } catch (err) {
+      res.statusCode = 422;
+      res.end(
+        JSON.stringify({
+          error: err?.message || "Failed to fetch YouTube videos.",
+        }),
+      );
+    }
+  });
+
+  middlewares.use("/api/request-summary", async (req, res) => {
+    res.setHeader("Content-Type", "application/json");
+
+    if (req.method !== "POST") {
+      res.statusCode = 405;
+      res.end(JSON.stringify({ error: "Method not allowed" }));
+      return;
+    }
+
+    const body = await readJsonBody(req);
+    const videos = Array.isArray(body?.videos) ? body.videos : [];
+    const videoIds = videos
+      .map((v) => v?.videoId || v?.video_id)
+      .filter((id) => typeof id === "string" && /^[a-zA-Z0-9_-]{11}$/.test(id));
+
+    if (videoIds.length === 0) {
+      res.statusCode = 400;
+      res.end(JSON.stringify({ error: "No valid video IDs provided." }));
+      return;
+    }
+
+    if (!fs.existsSync(workerScript)) {
+      res.statusCode = 202;
+      res.end(
+        JSON.stringify({
+          mode: "queued",
+          message: "Videos queued in database.",
+        }),
+      );
+      return;
+    }
+
+    const pythonBin = process.platform === "win32" ? "python" : "python3";
+    const child = spawn(
+      pythonBin,
+      ["worker.py", "--videos", videoIds.join(",")],
+      {
+        cwd: workerDir,
+        stdio: ["ignore", "pipe", "pipe"],
+      },
+    );
+
+    syncState.running = true;
+    syncState.startedAt = new Date().toISOString();
+    syncState.finishedAt = null;
+    syncState.lastError = null;
+    syncState.lastLog = [];
+
+    const pushLines = (buf) => {
+      const lines = buf
+        .toString("utf8")
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter(Boolean);
+      syncState.lastLog = [...syncState.lastLog, ...lines].slice(-40);
+    };
+
+    child.stdout.on("data", pushLines);
+    child.stderr.on("data", pushLines);
+    child.on("error", (err) => {
+      syncState.running = false;
+      syncState.finishedAt = new Date().toISOString();
+      syncState.lastExitCode = 1;
+      syncState.lastError = err.message;
+    });
+    child.on("close", (code) => {
+      syncState.running = false;
+      syncState.finishedAt = new Date().toISOString();
+      syncState.lastExitCode = code;
+      if (code !== 0) {
+        syncState.lastError =
+          syncState.lastLog.slice(-3).join(" | ") ||
+          `Worker exited with code ${code}`;
+      }
+    });
+
+    res.statusCode = 202;
+    res.end(JSON.stringify({ mode: "worker", status: "started", videoIds }));
   });
 
   middlewares.use("/api/sync-status", (req, res) => {

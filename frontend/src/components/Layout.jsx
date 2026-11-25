@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useSummaries } from "../hooks/useSummaries";
+import RequestSummaryModal from "./RequestSummaryModal";
 import {
   LayoutDashboard,
   Users,
@@ -11,12 +12,19 @@ import {
   LogOut,
   Sparkles,
   RefreshCw,
+  ListPlus,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function Layout({ children }) {
   const { user, logout } = useAuth();
-  const { localSyncSupported, syncRunning, syncNow } = useSummaries();
+  const {
+    localSyncSupported,
+    syncRunning,
+    syncNow,
+    requestModalOpen,
+    setRequestModalOpen,
+  } = useSummaries();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -58,7 +66,7 @@ export default function Layout({ children }) {
       toast.success("Sync started — summaries update live as they complete");
     } else {
       toast(
-        "Worker runs automatically every hour via GitHub Actions (or run python worker/worker.py locally).",
+        "Worker runs automatically on schedule (or run python worker/worker.py --watch locally).",
       );
     }
   };
@@ -164,6 +172,20 @@ export default function Layout({ children }) {
               </Link>
             );
           })}
+
+          <div className="pt-4">
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                setRequestModalOpen(true);
+              }}
+              className="btn-primary w-full py-2.5 text-xs"
+            >
+              <ListPlus className="w-4 h-4" />
+              Request Video Summary
+            </button>
+          </div>
         </nav>
 
         {/* Bottom status & user card */}
@@ -174,10 +196,10 @@ export default function Layout({ children }) {
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
             </span>
             <span className="text-xs font-semibold text-zinc-300">
-              {syncRunning ? "Worker Syncing…" : "System Online"}
+              {syncRunning ? "Worker Generating…" : "System Online"}
             </span>
             <span className="ml-auto text-[10px] font-bold text-emerald-400">
-              v2.1
+              70m
             </span>
           </div>
 
@@ -233,6 +255,18 @@ export default function Layout({ children }) {
           </div>
 
           <div className="flex items-center gap-2.5">
+            <button
+              id="open-request-summary-btn"
+              type="button"
+              onClick={() => setRequestModalOpen(true)}
+              className="btn-primary text-xs py-1.5 px-3"
+            >
+              <ListPlus className="w-3.5 h-3.5" />
+              <span>
+                Select Videos{" "}
+                <span className="hidden sm:inline">&amp; Summarize</span>
+              </span>
+            </button>
             {localSyncSupported && (
               <button
                 type="button"
@@ -244,10 +278,12 @@ export default function Layout({ children }) {
                 <RefreshCw
                   className={`w-3.5 h-3.5 ${syncRunning ? "animate-spin text-blue-400" : ""}`}
                 />
-                <span>{syncRunning ? "Syncing…" : "Sync Now"}</span>
+                <span className="hidden sm:inline">
+                  {syncRunning ? "Syncing…" : "Sync Now"}
+                </span>
               </button>
             )}
-            <span className="hidden sm:inline-flex badge badge-blue">
+            <span className="hidden md:inline-flex badge badge-blue">
               Gemini 3.6 Flash
             </span>
           </div>
@@ -258,6 +294,11 @@ export default function Layout({ children }) {
           <div className="max-w-6xl mx-auto animate-fade-in-up">{children}</div>
         </main>
       </div>
+
+      <RequestSummaryModal
+        open={requestModalOpen}
+        onClose={() => setRequestModalOpen(false)}
+      />
     </div>
   );
 }

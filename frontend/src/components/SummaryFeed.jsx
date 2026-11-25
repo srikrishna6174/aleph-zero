@@ -13,6 +13,9 @@ export default function SummaryFeed({
   onRetry,
   showHeader = true,
   title = "Latest Summaries",
+  selectable = false,
+  selectedVideoIds = null,
+  onToggleSelect,
 }) {
   const safeChannels = Array.isArray(channels) ? channels : [];
   const safeSummaries = Array.isArray(summaries) ? summaries : [];
@@ -125,6 +128,9 @@ export default function SummaryFeed({
                 channelAvatar={info.avatar || ""}
                 index={index}
                 onRetry={onRetry}
+                selectable={selectable}
+                selected={!!selectedVideoIds?.has(video.video_id)}
+                onToggleSelect={onToggleSelect}
               />
             );
           })}

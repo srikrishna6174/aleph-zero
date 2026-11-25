@@ -22,16 +22,37 @@ logger = logging.getLogger(__name__)
 # daily-quota exhausted (429 PerDay), or temporarily overloaded (503).
 FALLBACK_MODELS = [
     "gemini-3.6-flash",
+    "gemini-flash-lite-latest",
     "gemini-3.5-flash-lite",
+    "gemini-4-hydrogen",
+    "gemini-3.1-flash-lite",
+    "gemini-3.1-flash-lite-preview",
     "gemini-3-flash-preview",
     "gemini-3.5-flash",
-    "gemini-flash-lite-latest",
     "gemini-3.8-flash",
     "gemini-3.7-flash",
     "gemini-flash-latest",
     "gemini-3.1-pro-preview",
-    "gemini-4-hydrogen",
+    "gemma-4-31b-it",
+    "gemma-4-26b-a4b-it",
 ]
+
+
+def _compact_prompt(prompt: str, max_chars: int = 36000) -> str:
+    """Keep beginning, middle, and ending slices when a prompt exceeds TPM limits."""
+    if len(prompt) <= max_chars:
+        return prompt
+    head = int(max_chars * 0.45)
+    mid_len = int(max_chars * 0.27)
+    tail = max_chars - head - mid_len
+    mid_start = max(head, (len(prompt) - mid_len) // 2)
+    return (
+        prompt[:head]
+        + "\n\n[...middle transcript excerpted for model length limit...]\n\n"
+        + prompt[mid_start : mid_start + mid_len]
+        + "\n\n[...final transcript excerpted for model length limit...]\n\n"
+        + prompt[-tail:]
+    )
 
 # ─── System Prompt ───────────────────────────────────────────────────────────
 
@@ -240,89 +261,112 @@ class Summarizer:
         self, prompt: str, max_retries: int, retry_delay: int
     ) -> str:
         """
-        Make a call to Gemini with retry logic and automatic model fallback.
+        Make a call to Gemini with retry logic, TPM-safe sizing, and multi-model fallback.
         """
         last_error: Optional[Exception] = None
+        passes = [prompt]
+        if len(prompt) > 45000:
+            passes.append(_compact_prompt(prompt, 45000))
 
-        for model_name in self._model_candidates():
-            for attempt in range(1, max_retries + 1):
-                try:
-                    response = self._client.models.generate_content(
-                        model=model_name,
-                        contents=prompt,
-                        config=types.GenerateContentConfig(
-                            system_instruction=SYSTEM_PROMPT,
-                            max_output_tokens=self._max_output_tokens,
-                            temperature=0.3,
-                            automatic_function_calling=types.AutomaticFunctionCallingConfig(
-                                disable=True
+        for pass_idx, pass_prompt in enumerate(passes, 1):
+            if pass_idx > 1:
+                logger.info("Retrying transient overloaded models with compact 45k prompt window")
+                time.sleep(3)
+
+            for model_name in self._model_candidates():
+                is_gemma = model_name.startswith("gemma-")
+                effective_max_tokens = (
+                    max(self._max_output_tokens, 4096)
+                    if is_gemma
+                    else self._max_output_tokens
+                )
+                effective_prompt = (
+                    _compact_prompt(pass_prompt, 34000) if is_gemma else pass_prompt
+                )
+
+                for attempt in range(1, max_retries + 1):
+                    try:
+                        response = self._client.models.generate_content(
+                            model=model_name,
+                            contents=effective_prompt,
+                            config=types.GenerateContentConfig(
+                                system_instruction=SYSTEM_PROMPT,
+                                max_output_tokens=effective_max_tokens,
+                                temperature=0.3,
+                                automatic_function_calling=types.AutomaticFunctionCallingConfig(
+                                    disable=True
+                                ),
                             ),
-                        ),
-                    )
-
-                    if response.text and response.text.strip():
-                        if model_name != self._model:
-                            logger.info(
-                                f"Used fallback model '{model_name}' (primary '{self._model}' unavailable/exhausted)"
-                            )
-                        return response.text.strip()
-
-                    logger.warning(
-                        f"Gemini ({model_name}) returned empty response on attempt {attempt}"
-                    )
-                    last_error = ValueError("Empty response from Gemini")
-
-                except Exception as e:
-                    last_error = e
-                    category, retry_secs = _classify_gemini_error(e)
-
-                    if category == "not_found":
-                        logger.warning(
-                            f"Model '{model_name}' unavailable (404). Switching to fallback model..."
                         )
-                        self._unavailable_models.add(model_name)
-                        break
 
-                    if category == "daily_quota":
+                        if response.text and response.text.strip():
+                            if model_name != self._model:
+                                logger.info(
+                                    f"Used fallback model '{model_name}' (primary '{self._model}' unavailable/exhausted)"
+                                )
+                            return response.text.strip()
+
                         logger.warning(
-                            f"Model '{model_name}' daily quota exhausted (429). Switching to fallback model..."
+                            f"Gemini ({model_name}) returned empty response on attempt {attempt}"
                         )
-                        self._unavailable_models.add(model_name)
-                        break
+                        last_error = ValueError("Empty response from Gemini")
 
-                    if category == "server_error":
-                        if attempt < min(max_retries, 2):
+                    except Exception as e:
+                        last_error = e
+                        category, retry_secs = _classify_gemini_error(e)
+
+                        if category == "not_found":
                             logger.warning(
-                                f"Transient 503/5xx on '{model_name}' "
-                                f"(attempt {attempt}/{min(max_retries, 2)}): retrying in 3s"
+                                f"Model '{model_name}' unavailable (404). Switching to fallback model..."
                             )
-                            time.sleep(3)
-                            continue
-                        logger.warning(
-                            f"Model '{model_name}' overloaded ({category}). Switching to fallback model..."
-                        )
-                        break
+                            self._unavailable_models.add(model_name)
+                            break
 
-                    if category == "rate_limit":
-                        if attempt < max_retries:
-                            wait_time = (
-                                min(max(retry_secs, 3.0), 35.0)
-                                if retry_secs is not None
-                                else min(retry_delay * attempt * 2, 30)
-                            )
+                        if category == "daily_quota":
                             logger.warning(
-                                f"Rate limit on '{model_name}' "
-                                f"(attempt {attempt}/{max_retries}): retrying in {wait_time:.0f}s"
+                                f"Model '{model_name}' daily quota exhausted (429). Switching to fallback model..."
                             )
-                            time.sleep(wait_time)
-                        else:
+                            self._unavailable_models.add(model_name)
+                            break
+
+                        if category == "server_error":
+                            if attempt < min(max_retries, 2):
+                                logger.warning(
+                                    f"Transient 503/5xx on '{model_name}' "
+                                    f"(attempt {attempt}/{min(max_retries, 2)}): retrying in 3s"
+                                )
+                                time.sleep(3)
+                                continue
+                            logger.warning(
+                                f"Model '{model_name}' overloaded ({category}). Switching to fallback model..."
+                            )
+                            break
+
+                        if category == "rate_limit":
+                            if retry_secs is not None and retry_secs > 15:
+                                logger.warning(
+                                    f"Rate limit wait ({retry_secs:.0f}s) on '{model_name}'; switching to fallback model..."
+                                )
+                                break
+                            if attempt < min(max_retries, 2):
+                                wait_time = (
+                                    min(max(retry_secs, 3.0), 10.0)
+                                    if retry_secs is not None
+                                    else min(retry_delay * attempt, 10)
+                                )
+                                logger.warning(
+                                    f"Rate limit on '{model_name}' "
+                                    f"(attempt {attempt}/{min(max_retries, 2)}): retrying in {wait_time:.0f}s"
+                                )
+                                time.sleep(wait_time)
+                                continue
                             logger.warning(
                                 f"Exhausted retries on '{model_name}' ({category}). Trying next model..."
                             )
-                        continue
+                            break
 
-                    logger.error(f"Non-retriable Gemini API error: {e}")
-                    raise
+                        logger.error(f"Non-retriable Gemini API error: {e}")
+                        raise
 
         raise RuntimeError(
             f"Failed to get Gemini response after trying models {self._model_candidates()}. "
