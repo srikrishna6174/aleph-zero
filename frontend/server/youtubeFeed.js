@@ -193,12 +193,34 @@ export async function inspectVideoUrl(videoInput) {
         description = descRaw.slice(0, 3000);
       }
     }
+    if (!description) {
+      description = decodeXmlEntities(
+        html.match(/<meta name="description" content="([^"]*)"/)?.[1] ||
+          html.match(/<meta property="og:description" content="([^"]*)"/)?.[1] ||
+          "",
+      ).slice(0, 3000);
+    }
   }
 
-  const publishedAt =
+  let publishedAt =
     html.match(/"publishDate":"([^"]+)"/)?.[1] ||
-    html.match(/itemprop="datePublished" content="([^"]+)"/)?.[1] ||
-    new Date().toISOString();
+    html.match(/itemprop="(?:datePublished|uploadDate)" content="([^"]+)"/)?.[1] ||
+    "";
+  if (!publishedAt && html) {
+    const dateText = html
+      .match(/"dateText":\{"simpleText":"([^"]+)"\}/)?.[1]
+      ?.replace(/^(?:Premiered|Streamed live on|Started streaming on)\s+/i, "")
+      .trim();
+    if (dateText) {
+      const parsedMs = Date.parse(dateText);
+      if (!Number.isNaN(parsedMs)) {
+        publishedAt = new Date(parsedMs).toISOString();
+      }
+    }
+  }
+  if (!publishedAt) {
+    publishedAt = new Date().toISOString();
+  }
 
   return {
     videoId,
