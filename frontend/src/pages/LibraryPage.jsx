@@ -274,11 +274,11 @@ export default function LibraryPage() {
         <div className="flex flex-col lg:flex-row gap-3.5 justify-between lg:items-center">
           {/* Search + Channel Filter */}
           <div className="flex flex-col sm:flex-row gap-3 flex-1">
-            <div className="relative flex-1 sm:max-w-sm group">
+            <div className="relative flex-1 min-w-[220px] sm:max-w-sm group">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400 group-focus-within:text-stone-800 transition-colors" />
               <input
                 type="text"
-                placeholder="Search titles, channels, or summaries…"
+                placeholder="Search titles, channels…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="input-light pl-10"

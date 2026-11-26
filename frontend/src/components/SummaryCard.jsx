@@ -193,7 +193,6 @@ export default function SummaryCard({
                   alt={title}
                   referrerPolicy="no-referrer"
                   className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-103"
-                  loading="lazy"
                   onError={() => setImgError(true)}
                 />
               ) : (
@@ -263,7 +262,6 @@ export default function SummaryCard({
                     alt={channelName}
                     referrerPolicy="no-referrer"
                     className="w-4 h-4 rounded-full object-cover"
-                    loading="lazy"
                   />
                 ) : (
                   <User className="w-3.5 h-3.5 text-stone-500" />

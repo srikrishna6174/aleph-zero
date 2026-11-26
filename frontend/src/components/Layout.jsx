@@ -287,7 +287,7 @@ export default function Layout({ children }) {
 
         {/* Page Content */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
-          <div className="max-w-5xl mx-auto animate-fade-in-up">{children}</div>
+          <div className="max-w-6xl mx-auto animate-fade-in-up">{children}</div>
         </main>
       </div>
 
