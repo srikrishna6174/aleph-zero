@@ -7,7 +7,6 @@ import { Sparkles, Quote } from "lucide-react";
 function renderInline(text) {
   if (!text) return null;
   const tokens = [];
-  // Match **bold**, *italic*, `code`, or [label](url)
   const regex =
     /(\*\*[^*]+\*\*|\*[^*\n]+\*|`[^`]+`|\[[^\]]+\]\(https?:\/\/[^\s)]+\))/g;
   let lastIdx = 0;
@@ -24,13 +23,13 @@ function renderInline(text) {
     const token = match[0];
     if (token.startsWith("**") && token.endsWith("**")) {
       tokens.push(
-        <strong key={key++} className="font-semibold text-white">
+        <strong key={key++} className="font-semibold text-stone-900">
           {token.slice(2, -2)}
         </strong>,
       );
     } else if (token.startsWith("*") && token.endsWith("*")) {
       tokens.push(
-        <em key={key++} className="italic text-zinc-200">
+        <em key={key++} className="italic text-stone-700">
           {token.slice(1, -1)}
         </em>,
       );
@@ -38,7 +37,7 @@ function renderInline(text) {
       tokens.push(
         <code
           key={key++}
-          className="px-1.5 py-0.5 rounded bg-white/10 text-blue-300 font-mono text-[12px]"
+          className="px-1.5 py-0.5 rounded bg-stone-100 border border-stone-200 text-stone-800 font-mono text-[12px]"
         >
           {token.slice(1, -1)}
         </code>,
@@ -52,7 +51,7 @@ function renderInline(text) {
             href={linkMatch[2]}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-blue-400 hover:text-blue-300 underline underline-offset-2"
+            className="text-blue-700 hover:text-blue-800 underline underline-offset-2"
           >
             {linkMatch[1]}
           </a>,
@@ -127,7 +126,6 @@ function parseBlocks(markdown) {
       continue;
     }
 
-    // Markdown headings: #, ##, ### or standalone bold section labels like "**TL;DR**:"
     const headingMatch = line.match(/^#{1,4}\s+(.+)$/);
     const boldHeadingMatch = line.match(
       /^\*\*(TL;DR|Key Points|Details|Notable Quotes|Likely Topics|Note)\*\*:?\s*(.*)$/i,
@@ -160,7 +158,6 @@ function parseBlocks(markdown) {
       continue;
     }
 
-    // Blockquotes
     if (line.startsWith(">")) {
       flushParagraph();
       flushList();
@@ -168,7 +165,6 @@ function parseBlocks(markdown) {
       continue;
     }
 
-    // Unordered list items
     const ulMatch = line.match(/^[-*•]\s+(.+)$/);
     if (ulMatch) {
       flushParagraph();
@@ -179,7 +175,6 @@ function parseBlocks(markdown) {
       continue;
     }
 
-    // Ordered list items
     const olMatch = line.match(/^\d+[.)]\s+(.+)$/);
     if (olMatch) {
       flushParagraph();
@@ -190,7 +185,6 @@ function parseBlocks(markdown) {
       continue;
     }
 
-    // Plain paragraph text
     flushList();
     flushQuote();
     paragraphLines.push(line);
@@ -211,7 +205,7 @@ export default function MarkdownSummary({ content }) {
   }
 
   return (
-    <div className="space-y-3 text-sm leading-relaxed text-zinc-300">
+    <div className="space-y-3 text-sm leading-relaxed text-stone-700">
       {blocks.map((block, idx) => {
         if (block.type === "heading") {
           const isTldr = block.text.toLowerCase().includes("tl;dr");
@@ -221,16 +215,16 @@ export default function MarkdownSummary({ content }) {
               className={`flex items-center gap-2 ${idx > 0 ? "pt-2" : ""}`}
             >
               {isTldr && (
-                <Sparkles className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                <Sparkles className="w-3.5 h-3.5 text-blue-600 shrink-0" />
               )}
               <h4
-                className={`text-xs font-bold uppercase tracking-wider ${
-                  isTldr ? "text-blue-300" : "text-zinc-200"
+                className={`text-[11px] font-bold uppercase tracking-wider ${
+                  isTldr ? "text-blue-700" : "text-stone-500"
                 }`}
               >
                 {block.text}
               </h4>
-              <div className="h-px flex-1 bg-white/[0.06]" />
+              <div className="h-px flex-1 bg-stone-200/80" />
             </div>
           );
         }
@@ -241,14 +235,14 @@ export default function MarkdownSummary({ content }) {
             return (
               <div
                 key={idx}
-                className="rounded-lg px-3.5 py-2.5 bg-blue-500/10 border border-blue-500/20 text-zinc-100 text-[13.5px] leading-relaxed font-medium"
+                className="rounded-xl px-4 py-3 bg-[#f2f6fc] border border-[#dce6f7] border-l-[3px] border-l-blue-600 text-stone-800 text-[13.5px] leading-relaxed font-medium"
               >
                 {renderInline(block.text)}
               </div>
             );
           }
           return (
-            <p key={idx} className="text-zinc-300 leading-relaxed">
+            <p key={idx} className="text-stone-700 leading-relaxed">
               {renderInline(block.text)}
             </p>
           );
@@ -256,11 +250,11 @@ export default function MarkdownSummary({ content }) {
 
         if (block.type === "list") {
           return (
-            <ul key={idx} className="space-y-2 pl-1">
+            <ul key={idx} className="space-y-2 pl-0.5">
               {block.items.map((item, i) => (
                 <li key={i} className="flex items-start gap-2.5">
-                  <span className="mt-2 w-1.5 h-1.5 rounded-full bg-blue-400/80 shrink-0 shadow-[0_0_6px_rgba(96,165,250,0.6)]" />
-                  <span className="text-zinc-300 leading-relaxed">
+                  <span className="mt-2 w-1.5 h-1.5 rounded-full bg-blue-600 shrink-0" />
+                  <span className="text-stone-700 leading-relaxed">
                     {renderInline(item)}
                   </span>
                 </li>
@@ -273,9 +267,9 @@ export default function MarkdownSummary({ content }) {
           return (
             <blockquote
               key={idx}
-              className="flex items-start gap-2.5 rounded-lg px-3.5 py-2.5 bg-white/[0.03] border-l-2 border-indigo-400/70 text-zinc-200 italic"
+              className="flex items-start gap-2.5 rounded-xl px-4 py-3 bg-stone-50 border border-stone-200 border-l-[3px] border-l-stone-400 text-stone-700 italic"
             >
-              <Quote className="w-3.5 h-3.5 text-indigo-400 shrink-0 mt-1" />
+              <Quote className="w-3.5 h-3.5 text-stone-400 shrink-0 mt-1" />
               <span>{renderInline(block.text)}</span>
             </blockquote>
           );

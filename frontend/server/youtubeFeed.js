@@ -40,6 +40,21 @@ export function extractVideoId(raw = "") {
   return null;
 }
 
+export async function isYouTubeShort(videoId, linkHref = "") {
+  if (linkHref.includes("/shorts/")) return true;
+  if (!videoId) return false;
+  try {
+    const res = await fetch(`https://www.youtube.com/shorts/${videoId}`, {
+      method: "HEAD",
+      redirect: "manual",
+      signal: AbortSignal.timeout(2500),
+    });
+    return res.status === 200;
+  } catch {
+    return false;
+  }
+}
+
 export async function fetchChannelFeedVideos(channelId) {
   if (!/^UC[\w-]{22}$/.test(channelId)) {
     throw new Error("Invalid YouTube Channel ID.");
@@ -54,7 +69,7 @@ export async function fetchChannelFeedVideos(channelId) {
   const xml = await res.text();
   const entries = xml.match(/<entry>[\s\S]*?<\/entry>/gi) || [];
 
-  return entries
+  const parsed = entries
     .map((entry) => {
       const videoId = getTagValue(entry, "yt:videoId");
       const title = getTagValue(entry, "title") || "Untitled";
@@ -76,10 +91,23 @@ export async function fetchChannelFeedVideos(channelId) {
         publishedAt,
         thumbnailUrl,
         description,
+        linkHref,
         isShort: linkHref.includes("/shorts/"),
       };
     })
-    .filter((v) => Boolean(v.videoId));
+    .filter((v) => Boolean(v.videoId) && !v.isShort);
+
+  // Also verify ambiguous /watch?v= entries via parallel lightweight HEAD check
+  const checked = await Promise.all(
+    parsed.map(async (item) => {
+      const short = await isYouTubeShort(item.videoId, item.linkHref);
+      if (short) return null;
+      const { linkHref: _linkHref, ...rest } = item;
+      return rest;
+    }),
+  );
+
+  return checked.filter(Boolean);
 }
 
 async function fetchInnertubeVideoMeta(videoId) {
@@ -128,6 +156,12 @@ export async function inspectVideoUrl(videoInput) {
   const videoId = extractVideoId(videoInput);
   if (!videoId) {
     throw new Error("Could not extract a valid 11-character YouTube video ID.");
+  }
+
+  if (await isYouTubeShort(videoId, String(videoInput || ""))) {
+    throw new Error(
+      "YouTube Shorts are excluded from TubeDigest. Please paste a full-length video or livestream link.",
+    );
   }
 
   const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;

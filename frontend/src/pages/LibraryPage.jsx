@@ -111,7 +111,7 @@ export default function LibraryPage() {
   if (authLoading) {
     return (
       <div className="min-h-screen page-bg flex items-center justify-center">
-        <div className="w-8 h-8 rounded-full border-2 border-blue-500/30 border-t-blue-400 animate-spin" />
+        <div className="w-8 h-8 rounded-full border-2 border-stone-300 border-t-stone-800 animate-spin" />
       </div>
     );
   }
@@ -123,29 +123,28 @@ export default function LibraryPage() {
       label: "All",
       icon: PlayCircle,
       count: tabCounts.all,
-      activeClass: "bg-zinc-800 text-white border-white/20",
+      activeClass: "bg-stone-900 text-white border-stone-900",
     },
     {
       id: "completed",
       label: "Summarized",
       icon: CheckCircle2,
       count: tabCounts.completed,
-      activeClass:
-        "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
+      activeClass: "bg-emerald-50 text-emerald-800 border-emerald-300",
     },
     {
       id: "processing",
       label: "In Progress",
       icon: Loader2,
       count: tabCounts.processing,
-      activeClass: "bg-amber-500/20 text-amber-300 border-amber-500/40",
+      activeClass: "bg-amber-50 text-amber-800 border-amber-300",
     },
     {
       id: "failed",
       label: "Failed",
       icon: AlertTriangle,
       count: tabCounts.failed,
-      activeClass: "bg-red-500/20 text-red-300 border-red-500/40",
+      activeClass: "bg-red-50 text-red-800 border-red-300",
     },
   ];
 
@@ -188,7 +187,8 @@ export default function LibraryPage() {
         const okCount = results.filter((r) => r.status === "completed").length;
         if (failedCount > 0 && okCount === 0) {
           toast.error(
-            results[0]?.error || `Failed to generate summary for ${failedCount} video(s).`,
+            results[0]?.error ||
+              `Failed to generate summary for ${failedCount} video(s).`,
           );
         } else if (failedCount > 0) {
           toast.success(
@@ -225,18 +225,18 @@ export default function LibraryPage() {
       <div className="mb-7 animate-fade-in">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Library className="w-4 h-4 text-blue-400" />
-              <span className="text-xs font-bold uppercase tracking-widest text-blue-400">
+            <div className="flex items-center gap-2 mb-1.5">
+              <Library className="w-4 h-4 text-stone-500" />
+              <span className="text-xs font-semibold uppercase tracking-wider text-stone-500">
                 Library
               </span>
             </div>
-            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white mb-2">
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-stone-900 mb-1.5">
               Summary Library
             </h1>
-            <p className="text-sm text-zinc-400 max-w-2xl leading-relaxed">
-              Browse, search, and filter all AI-generated video summaries across
-              your tracked channels.
+            <p className="text-sm text-stone-600 max-w-2xl leading-relaxed">
+              Browse, search, and filter all video digests across your tracked
+              channels.
             </p>
           </div>
 
@@ -249,7 +249,7 @@ export default function LibraryPage() {
                 setSelectedVideoIds(new Set());
               }}
               className={`btn-secondary text-xs py-2.5 px-3.5 ${
-                selectionMode ? "border-blue-500/50 text-blue-300 bg-blue-500/10" : ""
+                selectionMode ? "border-stone-900 text-stone-900 bg-stone-100" : ""
               }`}
             >
               <CheckSquare className="w-4 h-4" />
@@ -260,7 +260,7 @@ export default function LibraryPage() {
               id="library-request-summary-btn"
               type="button"
               onClick={() => setRequestModalOpen(true)}
-              className="btn-primary text-xs py-2.5 px-4 shadow-[0_0_20px_rgba(59,130,246,0.28)]"
+              className="btn-primary text-xs py-2.5 px-4"
             >
               <ListPlus className="w-4 h-4" />
               Request Summary
@@ -275,7 +275,7 @@ export default function LibraryPage() {
           {/* Search + Channel Filter */}
           <div className="flex flex-col sm:flex-row gap-3 flex-1">
             <div className="relative flex-1 sm:max-w-sm group">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-blue-400 transition-colors" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400 group-focus-within:text-stone-800 transition-colors" />
               <input
                 type="text"
                 placeholder="Search titles, channels, or summaries…"
@@ -287,11 +287,11 @@ export default function LibraryPage() {
 
             {channels.length > 1 && (
               <div className="relative sm:w-52">
-                <Tv className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
+                <Tv className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400 pointer-events-none" />
                 <select
                   value={channelFilter}
                   onChange={(e) => setChannelFilter(e.target.value)}
-                  className="input-light pl-10 pr-8 appearance-none cursor-pointer bg-zinc-900/90"
+                  className="input-light pl-10 pr-8 appearance-none cursor-pointer bg-white"
                   aria-label="Filter by channel"
                 >
                   <option value="all">All Channels ({channels.length})</option>
@@ -321,10 +321,10 @@ export default function LibraryPage() {
                   key={tab.id}
                   type="button"
                   onClick={() => setStatusFilter(tab.id)}
-                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap cursor-pointer transition-all border shrink-0 ${
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer transition-all border shrink-0 ${
                     isActive
-                      ? `${tab.activeClass} shadow-md`
-                      : "bg-white/[0.04] text-zinc-400 border-white/[0.06] hover:bg-white/[0.08] hover:text-zinc-200"
+                      ? `${tab.activeClass} shadow-xs`
+                      : "bg-[#f7f6f2] text-stone-600 border-[#e5e2d9] hover:bg-stone-200/60 hover:text-stone-900"
                   }`}
                 >
                   <tab.icon
@@ -332,7 +332,15 @@ export default function LibraryPage() {
                   />
                   <span>{tab.label}</span>
                   {tab.count > 0 && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-white/10 text-current">
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                        isActive
+                          ? tab.id === "all"
+                            ? "bg-white/20 text-white"
+                            : "bg-white/80 text-current"
+                          : "bg-stone-200/80 text-stone-700"
+                      }`}
+                    >
                       {tab.count}
                     </span>
                   )}
@@ -344,13 +352,15 @@ export default function LibraryPage() {
 
         {/* Active filter indicator */}
         {hasActiveFilters && (
-          <div className="flex items-center gap-3 bg-white/[0.04] px-3.5 py-1.5 rounded-lg w-fit border border-white/[0.06]">
-            <span className="text-xs font-semibold text-zinc-400">
+          <div className="flex items-center gap-3 bg-[#f7f6f2] px-3.5 py-1.5 rounded-lg w-fit border border-[#e6e3dc]">
+            <span className="text-xs font-medium text-stone-600">
               Showing{" "}
-              <span className="text-white">{filteredSummaries.length}</span> of{" "}
-              {summaries.length} loaded videos
+              <span className="text-stone-900 font-semibold">
+                {filteredSummaries.length}
+              </span>{" "}
+              of {summaries.length} loaded videos
             </span>
-            <span className="w-px h-3 bg-white/20" />
+            <span className="w-px h-3 bg-stone-300" />
             <button
               type="button"
               onClick={() => {
@@ -358,7 +368,7 @@ export default function LibraryPage() {
                 setStatusFilter("all");
                 setChannelFilter("all");
               }}
-              className="text-xs font-bold cursor-pointer transition-colors text-blue-400 hover:text-blue-300"
+              className="text-xs font-semibold cursor-pointer transition-colors text-blue-700 hover:text-blue-800"
             >
               Clear filters
             </button>
@@ -368,9 +378,9 @@ export default function LibraryPage() {
 
       {/* Batch selection toolbar */}
       {selectionMode && (
-        <div className="glass-card p-4 mb-6 flex flex-wrap items-center justify-between gap-3 border-blue-500/30 bg-blue-500/[0.06] animate-fade-in">
+        <div className="glass-card p-4 mb-6 flex flex-wrap items-center justify-between gap-3 border-blue-200 bg-blue-50/70 animate-fade-in">
           <div className="flex items-center gap-3">
-            <span className="text-xs font-bold text-blue-300">
+            <span className="text-xs font-bold text-stone-900">
               {selectedVideoIds.size} video
               {selectedVideoIds.size === 1 ? "" : "s"} selected
             </span>
@@ -378,7 +388,7 @@ export default function LibraryPage() {
               <button
                 type="button"
                 onClick={handleSelectAllVisible}
-                className="text-xs font-semibold text-zinc-300 hover:text-white cursor-pointer underline underline-offset-2"
+                className="text-xs font-semibold text-blue-700 hover:text-blue-900 cursor-pointer underline underline-offset-2"
               >
                 Select all visible ({filteredSummaries.length})
               </button>
@@ -387,7 +397,7 @@ export default function LibraryPage() {
               <button
                 type="button"
                 onClick={handleClearSelection}
-                className="text-xs font-semibold text-zinc-400 hover:text-zinc-200 cursor-pointer inline-flex items-center gap-1"
+                className="text-xs font-semibold text-stone-600 hover:text-stone-900 cursor-pointer inline-flex items-center gap-1"
               >
                 <X className="w-3 h-3" />
                 Clear
@@ -420,14 +430,13 @@ export default function LibraryPage() {
       {/* Results or empty filtered state */}
       {filteredSummaries.length === 0 && !summariesLoading && hasActiveFilters ? (
         <div className="glass-card p-14 text-center">
-          <div className="w-16 h-16 mx-auto mb-5 rounded-2xl flex items-center justify-center bg-white/[0.05] border border-white/10 relative">
-            <div className="absolute inset-0 bg-blue-500/15 blur-xl rounded-full" />
-            <Filter className="w-8 h-8 text-zinc-400 relative z-10" />
+          <div className="w-14 h-14 mx-auto mb-5 rounded-2xl flex items-center justify-center bg-stone-100 border border-stone-200 text-stone-500">
+            <Filter className="w-7 h-7" />
           </div>
-          <h3 className="text-xl font-bold mb-2 text-zinc-100">
+          <h3 className="text-xl font-bold mb-2 text-stone-900">
             No matching videos
           </h3>
-          <p className="text-sm text-zinc-400 mb-6">
+          <p className="text-sm text-stone-500 mb-6">
             {hasMore
               ? "Try loading more summaries or adjusting your active filters."
               : "Try adjusting your search query or active filters."}

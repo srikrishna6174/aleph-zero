@@ -66,23 +66,23 @@ export default function AuthForm({ mode = "login", onToggleMode }) {
 
   return (
     <div className="min-h-screen page-bg flex items-center justify-center px-4 py-10 relative overflow-hidden">
-      {/* Background dot grid */}
+      {/* Subtle architectural paper dot texture */}
       <div
-        className="absolute inset-0 opacity-15 pointer-events-none"
+        className="absolute inset-0 opacity-45 pointer-events-none"
         style={{
           backgroundImage:
-            "radial-gradient(rgba(255,255,255,0.22) 1px, transparent 1px)",
-          backgroundSize: "32px 32px",
+            "radial-gradient(rgba(120,113,108,0.16) 1px, transparent 1px)",
+          backgroundSize: "28px 28px",
         }}
       />
 
       <div className="w-full max-w-md relative z-10 animate-fade-in-up">
         {/* Brand */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-3.5 mb-3">
-            <div className="w-13 h-13 rounded-2xl flex items-center justify-center bg-gradient-to-br from-blue-600 to-indigo-600 shadow-[0_8px_30px_rgba(37,99,235,0.45)]">
+          <div className="inline-flex items-center gap-3 mb-2.5">
+            <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-red-600 shadow-sm">
               <svg
-                className="w-7 h-7 text-white"
+                className="w-5 h-5 text-white"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -101,28 +101,28 @@ export default function AuthForm({ mode = "login", onToggleMode }) {
               </svg>
             </div>
             <div className="text-left">
-              <h1 className="text-2xl font-extrabold text-white tracking-tight leading-tight">
+              <h1 className="text-2xl font-extrabold text-stone-900 tracking-tight leading-tight">
                 TubeDigest
               </h1>
-              <p className="text-[11px] font-bold uppercase tracking-widest gradient-text">
-                AI Engine
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-stone-500">
+                YouTube Reader
               </p>
             </div>
           </div>
-          <p className="text-sm text-zinc-400">
-            AI-powered YouTube channel summaries
+          <p className="text-sm text-stone-600">
+            Calm, structured summaries for the channels you follow
           </p>
         </div>
 
         {/* Form Card */}
         <div className="glass-card p-7 sm:p-9">
           <div className="mb-6">
-            <h2 className="text-2xl font-extrabold text-white tracking-tight">
-              {isLogin ? "Welcome back" : "Create account"}
+            <h2 className="text-2xl font-bold text-stone-900 tracking-tight">
+              {isLogin ? "Welcome back" : "Create your account"}
             </h2>
-            <p className="text-sm text-zinc-400 mt-1.5">
+            <p className="text-sm text-stone-500 mt-1">
               {isLogin
-                ? "Sign in to access your channel feed"
+                ? "Sign in to read your channel feed"
                 : "Start tracking YouTube creators in seconds"}
             </p>
           </div>
@@ -132,9 +132,9 @@ export default function AuthForm({ mode = "login", onToggleMode }) {
               <div className="animate-fade-in">
                 <label
                   htmlFor="auth-name"
-                  className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2"
+                  className="block text-xs font-semibold text-stone-700 mb-1.5"
                 >
-                  Full Name
+                  Full name
                 </label>
                 <input
                   id="auth-name"
@@ -151,9 +151,9 @@ export default function AuthForm({ mode = "login", onToggleMode }) {
             <div>
               <label
                 htmlFor="auth-email"
-                className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2"
+                className="block text-xs font-semibold text-stone-700 mb-1.5"
               >
-                Email Address
+                Email address
               </label>
               <input
                 id="auth-email"
@@ -169,7 +169,7 @@ export default function AuthForm({ mode = "login", onToggleMode }) {
             <div>
               <label
                 htmlFor="auth-password"
-                className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2"
+                className="block text-xs font-semibold text-stone-700 mb-1.5"
               >
                 Password
               </label>
@@ -187,7 +187,7 @@ export default function AuthForm({ mode = "login", onToggleMode }) {
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 cursor-pointer p-1"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 cursor-pointer p-1"
                   tabIndex={-1}
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
@@ -197,8 +197,8 @@ export default function AuthForm({ mode = "login", onToggleMode }) {
             </div>
 
             {displayError && (
-              <div className="animate-fade-in px-4 py-3 rounded-xl text-xs font-semibold bg-red-500/10 border border-red-500/25 text-red-300 flex items-start gap-2.5">
-                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-400" />
+              <div className="animate-fade-in px-4 py-3 rounded-xl text-xs font-medium bg-red-50 border border-red-200 text-red-700 flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-600" />
                 <span>{displayError}</span>
               </div>
             )}
@@ -207,7 +207,7 @@ export default function AuthForm({ mode = "login", onToggleMode }) {
               id="auth-submit-btn"
               type="submit"
               disabled={submitting}
-              className="btn-primary w-full py-3.5 text-[15px] mt-2"
+              className="btn-primary w-full py-3 text-[15px] mt-2"
             >
               {submitting ? (
                 <span className="inline-flex items-center gap-2">
@@ -217,7 +217,7 @@ export default function AuthForm({ mode = "login", onToggleMode }) {
               ) : (
                 <span className="inline-flex items-center gap-2">
                   {isLogin ? "Sign In" : "Create Account"}
-                  <ArrowRight size={18} />
+                  <ArrowRight size={17} />
                 </span>
               )}
             </button>
@@ -228,7 +228,7 @@ export default function AuthForm({ mode = "login", onToggleMode }) {
                 id="auth-fill-demo-btn"
                 disabled={submitting}
                 onClick={handleDemoLogin}
-                className="btn-secondary w-full py-2.5 text-xs text-zinc-300"
+                className="btn-secondary w-full py-2.5 text-xs text-stone-700"
               >
                 Sign In with Demo Account
               </button>
@@ -236,13 +236,13 @@ export default function AuthForm({ mode = "login", onToggleMode }) {
           </form>
 
           <div className="mt-6 text-center">
-            <p className="text-sm text-zinc-400">
+            <p className="text-sm text-stone-500">
               {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
               <button
                 type="button"
                 id="auth-toggle-mode-btn"
                 onClick={onToggleMode}
-                className="text-blue-400 hover:text-blue-300 font-bold cursor-pointer"
+                className="text-stone-900 hover:text-blue-600 font-semibold underline underline-offset-2 cursor-pointer transition-colors"
               >
                 {isLogin ? "Sign Up" : "Sign In"}
               </button>
@@ -251,11 +251,11 @@ export default function AuthForm({ mode = "login", onToggleMode }) {
         </div>
 
         {/* Feature chips */}
-        <div className="mt-7 flex flex-wrap justify-center gap-2.5">
+        <div className="mt-6 flex flex-wrap justify-center gap-2">
           {[
             "70-min auto sync",
             "Multi-layer transcripts",
-            "Gemini 3.6 Flash",
+            "Shorts filtered out",
           ].map((chip) => (
             <span key={chip} className="badge badge-gray">
               {chip}

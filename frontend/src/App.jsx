@@ -20,24 +20,24 @@ export default function App() {
               toastOptions={{
                 duration: 4000,
                 style: {
-                  background: "var(--color-surface-900)",
-                  color: "var(--color-surface-0)",
-                  border: "1px solid var(--color-surface-800)",
+                  background: "#ffffff",
+                  color: "#18181b",
+                  border: "1px solid #e6e3dc",
                   fontSize: "13.5px",
                   fontWeight: "500",
                   borderRadius: "12px",
                   boxShadow:
-                    "0 8px 24px rgba(0, 0, 0, 0.55), 0 1px 4px rgba(0, 0, 0, 0.25)",
+                    "0 10px 28px -6px rgba(24, 24, 20, 0.12), 0 2px 6px rgba(24, 24, 20, 0.05)",
                 },
                 success: {
                   iconTheme: {
-                    primary: "#10b981",
+                    primary: "#059669",
                     secondary: "#ffffff",
                   },
                 },
                 error: {
                   iconTheme: {
-                    primary: "#ef4444",
+                    primary: "#dc2626",
                     secondary: "#ffffff",
                   },
                 },

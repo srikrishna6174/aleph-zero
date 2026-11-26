@@ -6,7 +6,7 @@ import { useSummaries } from "../hooks/useSummaries";
 import Layout from "../components/Layout";
 import StatsBar from "../components/StatsBar";
 import SummaryFeed from "../components/SummaryFeed";
-import { ArrowRight, Plus, Sparkles, RefreshCw, ListPlus } from "lucide-react";
+import { ArrowRight, Plus, RefreshCw, ListPlus } from "lucide-react";
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -42,7 +42,7 @@ export default function DashboardPage() {
   if (authLoading) {
     return (
       <div className="min-h-screen page-bg flex items-center justify-center">
-        <div className="w-8 h-8 rounded-full border-2 border-blue-500/30 border-t-blue-400 animate-spin" />
+        <div className="w-8 h-8 rounded-full border-2 border-stone-300 border-t-stone-800 animate-spin" />
       </div>
     );
   }
@@ -53,22 +53,18 @@ export default function DashboardPage() {
       <title>Overview — TubeDigest</title>
 
       {/* Welcome Header */}
-      <div className="mb-8 animate-fade-in-up">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-5">
+      <div className="mb-7 animate-fade-in-up">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="w-4 h-4 text-blue-400" />
-              <span className="text-xs font-bold uppercase tracking-widest text-blue-400">
-                Dashboard
-              </span>
-            </div>
-            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
+            <p className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1.5">
+              Overview
+            </p>
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-stone-900">
               {greeting},{" "}
-              <span className="gradient-text">{firstName || "there"}</span>
+              <span className="text-red-600">{firstName || "there"}</span>
             </h1>
-            <p className="mt-2 text-sm text-zinc-400">
-              Here&apos;s what your AI engine has summarized across your
-              subscriptions.
+            <p className="mt-1.5 text-sm text-stone-600">
+              Catch up on structured summaries across your YouTube watchlist.
             </p>
           </div>
 
@@ -77,17 +73,14 @@ export default function DashboardPage() {
               id="dashboard-request-summary-btn"
               type="button"
               onClick={() => setRequestModalOpen(true)}
-              className="btn-primary shadow-[0_0_20px_rgba(59,130,246,0.3)]"
+              className="btn-primary"
             >
               <ListPlus className="w-4 h-4" />
               Select Videos &amp; Request Summary
             </button>
 
             {channels.length === 0 && (
-              <Link
-                to="/channels"
-                className="btn-secondary"
-              >
+              <Link to="/channels" className="btn-secondary">
                 <Plus className="w-4 h-4" />
                 Track your first channel
               </Link>
@@ -99,17 +92,17 @@ export default function DashboardPage() {
       {/* Stats */}
       <StatsBar channels={channels} summaries={summaries} stats={stats} />
 
-      <div className="my-8 h-px bg-white/[0.08]" />
+      <div className="my-7 h-px bg-[#e6e3dc]" />
 
       {/* Recent Feed */}
       <div>
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-5">
           <div>
-            <h2 className="text-xl font-bold text-white tracking-wide">
+            <h2 className="text-xl font-bold text-stone-900 tracking-tight">
               Recent Activity
             </h2>
-            <p className="text-sm mt-1 text-zinc-400">
-              Showing latest 5 videos from your watchlist
+            <p className="text-sm mt-0.5 text-stone-500">
+              Latest 5 full-length videos from your watchlist
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -126,7 +119,7 @@ export default function DashboardPage() {
             </button>
             <Link
               to="/library"
-              className="flex items-center gap-1.5 text-sm font-bold transition-colors text-blue-400 hover:text-blue-300"
+              className="flex items-center gap-1.5 text-sm font-semibold transition-colors text-stone-700 hover:text-stone-950"
             >
               View all
               <ArrowRight className="w-4 h-4" />

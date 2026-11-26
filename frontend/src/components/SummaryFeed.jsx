@@ -42,15 +42,15 @@ export default function SummaryFeed({
     <div className="space-y-5">
       {showHeader && (
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-gradient-to-br from-blue-600 to-indigo-600 shadow-[0_0_15px_rgba(59,130,246,0.3)]">
-              <Zap className="w-4 h-4 text-white" />
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-blue-50 border border-blue-200 text-blue-600">
+              <Zap className="w-4 h-4" />
             </div>
-            <h2 className="text-lg font-bold text-white tracking-wide">
+            <h2 className="text-lg font-bold text-stone-900 tracking-tight">
               {title}
             </h2>
             {safeSummaries.length > 0 && (
-              <span className="badge badge-blue">{safeSummaries.length}</span>
+              <span className="badge badge-gray">{safeSummaries.length}</span>
             )}
           </div>
           {onRefresh && (
@@ -83,7 +83,7 @@ export default function SummaryFeed({
                   <div className="skeleton h-3 rounded-lg w-1/3" />
                 </div>
               </div>
-              <div className="mt-5 pt-4 space-y-2.5 border-t border-white/5">
+              <div className="mt-5 pt-4 space-y-2.5 border-t border-stone-100">
                 <div className="skeleton h-3.5 rounded-lg w-full" />
                 <div className="skeleton h-3.5 rounded-lg w-11/12" />
                 <div className="skeleton h-3.5 rounded-lg w-4/5" />
@@ -96,17 +96,15 @@ export default function SummaryFeed({
       {/* Empty state */}
       {!loading && safeSummaries.length === 0 && (
         <div className="glass-card p-12 sm:p-16 text-center animate-fade-in-up">
-          <div className="w-16 h-16 mx-auto mb-5 rounded-2xl flex items-center justify-center bg-white/[0.05] border border-white/10 relative">
-            <div className="absolute inset-0 bg-blue-500/15 blur-xl rounded-full" />
-            <FileText className="w-8 h-8 text-blue-400 relative z-10" />
+          <div className="w-14 h-14 mx-auto mb-5 rounded-2xl flex items-center justify-center bg-stone-100 border border-stone-200 text-stone-600">
+            <FileText className="w-7 h-7" />
           </div>
-          <h3 className="text-xl font-bold text-white mb-2.5">
+          <h3 className="text-xl font-bold text-stone-900 mb-2">
             No summaries yet
           </h3>
-          <p className="text-sm text-zinc-400 mb-7 max-w-md mx-auto leading-relaxed">
-            Add YouTube channels to your watchlist. The AI worker fetches new
-            uploads and generates structured summaries powered by Gemini 3.6
-            Flash.
+          <p className="text-sm text-stone-500 mb-7 max-w-md mx-auto leading-relaxed">
+            Add YouTube channels to your watchlist. New full-length uploads are
+            fetched via RSS and summarized automatically with Gemini 3.6 Flash.
           </p>
           <Link to="/channels" className="btn-primary text-sm">
             <Plus className="w-4 h-4" />
@@ -145,7 +143,7 @@ export default function SummaryFeed({
             type="button"
             onClick={onLoadMore}
             disabled={loading}
-            className="btn-secondary px-8 py-3 text-sm"
+            className="btn-secondary px-8 py-2.5 text-sm"
           >
             {loading ? (
               <span className="inline-flex items-center gap-2">

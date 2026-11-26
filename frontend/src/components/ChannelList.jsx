@@ -5,24 +5,24 @@ import toast from "react-hot-toast";
 const YoutubeIcon = ({ className }) => (
   <svg className={className} fill="currentColor" viewBox="0 0 24 24">
     <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z" />
-    <path fill="#18181b" d="M9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+    <path fill="#ffffff" d="M9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
   </svg>
 );
 
 const AVATAR_COLORS = [
-  ["#3b82f6", "#eff6ff"],
-  ["#8b5cf6", "#f5f3ff"],
-  ["#10b981", "#ecfdf5"],
-  ["#f59e0b", "#fffbeb"],
-  ["#ec4899", "#fdf2f8"],
-  ["#06b6d4", "#ecfeff"],
+  ["#eff6ff", "#1d4ed8", "#bfdbfe"],
+  ["#f5f3ff", "#6d28d9", "#ddd6fe"],
+  ["#ecfdf5", "#047857", "#a7f3d0"],
+  ["#fffbeb", "#b45309", "#fde68a"],
+  ["#fef2f2", "#b91c1c", "#fecaca"],
+  ["#ecfeff", "#0e7490", "#a5f3fc"],
 ];
 
 function ChannelAvatar({ channel, displayName }) {
   const [imgFailed, setImgFailed] = useState(false);
   const avatarUrl = channel.thumbnail_url || "";
   const initial = displayName.charAt(0).toUpperCase();
-  const colorPair =
+  const colorTriple =
     AVATAR_COLORS[(channel.channel_id?.charCodeAt(2) || 0) % AVATAR_COLORS.length] ||
     AVATAR_COLORS[0];
 
@@ -32,7 +32,7 @@ function ChannelAvatar({ channel, displayName }) {
         src={avatarUrl}
         alt={displayName}
         referrerPolicy="no-referrer"
-        className="w-11 h-11 rounded-xl object-cover shrink-0 border border-white/10 shadow-md"
+        className="w-11 h-11 rounded-xl object-cover shrink-0 border border-stone-200 shadow-xs bg-stone-100"
         onError={() => setImgFailed(true)}
       />
     );
@@ -40,10 +40,11 @@ function ChannelAvatar({ channel, displayName }) {
 
   return (
     <div
-      className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 text-base font-bold shadow-inner"
+      className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 text-base font-bold border"
       style={{
-        background: `linear-gradient(135deg, ${colorPair[0]}, #1e1b4b)`,
-        color: colorPair[1],
+        background: colorTriple[0],
+        color: colorTriple[1],
+        borderColor: colorTriple[2],
       }}
     >
       {initial}
@@ -91,7 +92,11 @@ export default function ChannelList({
 
   const startEdit = (channel, displayName) => {
     setEditingDocId(channel.$id ?? channel.id);
-    setEditValue(channel.name && channel.name !== channel.channel_id ? channel.name : displayName);
+    setEditValue(
+      channel.name && channel.name !== channel.channel_id
+        ? channel.name
+        : displayName,
+    );
   };
 
   const saveEdit = async (channel) => {
@@ -116,7 +121,7 @@ export default function ChannelList({
         {[1, 2, 3, 4].map((i) => (
           <div
             key={i}
-            className="flex items-center gap-4 p-4 rounded-xl bg-white/[0.04] border border-white/[0.06]"
+            className="flex items-center gap-4 p-4 rounded-xl bg-stone-50 border border-stone-200/70"
           >
             <div className="skeleton w-11 h-11 rounded-xl shrink-0" />
             <div className="flex-1 space-y-2.5">
@@ -134,13 +139,13 @@ export default function ChannelList({
       {safeChannels.length > 0 && (
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
           <div className="relative w-full sm:max-w-xs shrink-0 group">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-blue-400 transition-colors" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400 group-focus-within:text-stone-800 transition-colors" />
             <input
               type="text"
               placeholder="Search tracked channels…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="input-light pl-10 py-2.5 text-sm w-full"
+              className="input-light pl-10 py-2 text-sm w-full"
             />
           </div>
         </div>
@@ -148,22 +153,23 @@ export default function ChannelList({
 
       {safeChannels.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 px-4">
-          <div className="w-20 h-20 mb-5 rounded-2xl flex items-center justify-center bg-white/[0.04] border border-white/10 shadow-lg relative">
-            <div className="absolute inset-0 bg-blue-500/20 blur-xl rounded-full" />
-            <YoutubeIcon className="w-9 h-9 text-zinc-400 relative z-10" />
+          <div className="w-16 h-16 mb-5 rounded-2xl flex items-center justify-center bg-red-50 border border-red-100">
+            <YoutubeIcon className="w-8 h-8 text-red-600" />
           </div>
-          <p className="text-lg font-bold text-zinc-100 mb-2">
+          <p className="text-lg font-bold text-stone-900 mb-1.5">
             No channels tracked yet
           </p>
-          <p className="text-sm text-zinc-400 max-w-sm text-center">
+          <p className="text-sm text-stone-500 max-w-sm text-center">
             Use the form or popular channel presets on the left to start
-            receiving AI summaries.
+            receiving structured video digests.
           </p>
         </div>
       ) : filteredChannels.length === 0 ? (
-        <div className="text-center py-12 text-zinc-400 bg-white/[0.03] rounded-2xl border border-white/[0.06]">
+        <div className="text-center py-12 text-stone-500 bg-[#fafaf8] rounded-2xl border border-[#e6e3dc]">
           <p className="text-sm">
-            No channels match &ldquo;<span className="text-white font-semibold">{searchQuery}</span>&rdquo;
+            No channels match &ldquo;
+            <span className="text-stone-900 font-semibold">{searchQuery}</span>
+            &rdquo;
           </p>
         </div>
       ) : (
@@ -181,9 +187,9 @@ export default function ChannelList({
               <div
                 key={docId}
                 data-channel-id={channel.channel_id}
-                className="group flex items-center justify-between gap-3 p-4 rounded-xl transition-all duration-200 animate-fade-in-up bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] hover:border-white/[0.14]"
+                className="group flex items-center justify-between gap-3 p-3.5 rounded-xl transition-all duration-150 animate-fade-in-up bg-[#fafaf8] hover:bg-white border border-[#e6e3dc] hover:border-[#d2cdc2] hover:shadow-xs"
                 style={{
-                  animationDelay: `${(index % 15) * 0.035}s`,
+                  animationDelay: `${(index % 15) * 0.03}s`,
                   opacity: isRemoving ? 0.5 : 1,
                 }}
               >
@@ -207,7 +213,7 @@ export default function ChannelList({
                         <button
                           type="button"
                           onClick={() => saveEdit(channel)}
-                          className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 cursor-pointer"
+                          className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 cursor-pointer"
                           title="Save"
                         >
                           <Check className="w-3.5 h-3.5" />
@@ -215,7 +221,7 @@ export default function ChannelList({
                         <button
                           type="button"
                           onClick={() => setEditingDocId(null)}
-                          className="p-1.5 rounded-lg bg-white/5 text-zinc-400 hover:text-white cursor-pointer"
+                          className="p-1.5 rounded-lg bg-stone-100 text-stone-500 hover:text-stone-800 cursor-pointer"
                           title="Cancel"
                         >
                           <X className="w-3.5 h-3.5" />
@@ -223,21 +229,21 @@ export default function ChannelList({
                       </div>
                     ) : (
                       <p
-                        className="text-sm font-bold text-zinc-100 truncate mb-1"
+                        className="text-sm font-bold text-stone-900 truncate mb-1"
                         title={displayName}
                       >
                         {displayName}
                       </p>
                     )}
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-zinc-400 truncate font-mono bg-black/35 px-1.5 py-0.5 rounded border border-white/[0.05]">
+                      <span className="text-[10px] text-stone-500 truncate font-mono bg-stone-100 px-1.5 py-0.5 rounded border border-stone-200/80">
                         {channel.channel_id}
                       </span>
                       <a
                         href={`https://www.youtube.com/channel/${channel.channel_id}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-zinc-500 hover:text-blue-400 transition-colors"
+                        className="text-stone-400 hover:text-stone-800 transition-colors"
                         title="Open channel on YouTube"
                       >
                         <ExternalLink size={12} />
@@ -252,7 +258,7 @@ export default function ChannelList({
                       <button
                         type="button"
                         onClick={() => startEdit(channel, displayName)}
-                        className="p-2 rounded-lg cursor-pointer transition-all text-zinc-400 sm:text-zinc-500 hover:text-blue-300 hover:bg-blue-500/10 sm:opacity-65 sm:group-hover:opacity-100 focus:opacity-100"
+                        className="p-2 rounded-lg cursor-pointer transition-colors text-stone-400 hover:text-stone-900 hover:bg-stone-100 sm:opacity-65 sm:group-hover:opacity-100 focus:opacity-100"
                         title="Rename channel"
                         aria-label={`Rename ${displayName}`}
                       >
@@ -263,7 +269,7 @@ export default function ChannelList({
                       type="button"
                       onClick={() => handleRemove(channel.channel_id, displayName)}
                       disabled={isRemoving}
-                      className="p-2 rounded-lg cursor-pointer transition-all text-zinc-400 sm:text-zinc-500 hover:text-red-400 hover:bg-red-500/10 sm:opacity-65 sm:group-hover:opacity-100 focus:opacity-100"
+                      className="p-2 rounded-lg cursor-pointer transition-colors text-stone-400 hover:text-red-600 hover:bg-red-50 sm:opacity-65 sm:group-hover:opacity-100 focus:opacity-100"
                       title="Unsubscribe from channel"
                       aria-label={`Unsubscribe from ${displayName}`}
                     >

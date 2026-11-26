@@ -43,47 +43,47 @@ function getStatusBadge(status) {
     case "completed":
       return {
         label: "Summarized",
-        bg: "rgba(16, 185, 129, 0.15)",
-        color: "#34d399",
-        border: "rgba(16, 185, 129, 0.3)",
+        bg: "#ecfdf5",
+        color: "#047857",
+        border: "#a7f3d0",
         dot: "#10b981",
-        stripe: "linear-gradient(90deg, #10b981, #34d399)",
+        stripe: "#10b981",
       };
     case "processing":
       return {
         label: "Processing",
-        bg: "rgba(245, 158, 11, 0.15)",
-        color: "#fbbf24",
-        border: "rgba(245, 158, 11, 0.3)",
+        bg: "#fffbeb",
+        color: "#b45309",
+        border: "#fde68a",
         dot: "#f59e0b",
-        stripe: "linear-gradient(90deg, #f59e0b, #fbbf24)",
+        stripe: "#f59e0b",
       };
     case "pending":
       return {
         label: "Queued",
-        bg: "rgba(59, 130, 246, 0.15)",
-        color: "#60a5fa",
-        border: "rgba(59, 130, 246, 0.3)",
-        dot: "#3b82f6",
-        stripe: "linear-gradient(90deg, #3b82f6, #60a5fa)",
+        bg: "#f0f9ff",
+        color: "#0369a1",
+        border: "#bae6fd",
+        dot: "#0284c7",
+        stripe: "#0284c7",
       };
     case "failed":
       return {
         label: "Failed",
-        bg: "rgba(239, 68, 68, 0.15)",
-        color: "#f87171",
-        border: "rgba(239, 68, 68, 0.3)",
-        dot: "#ef4444",
-        stripe: "linear-gradient(90deg, #ef4444, #f87171)",
+        bg: "#fef2f2",
+        color: "#b91c1c",
+        border: "#fecaca",
+        dot: "#dc2626",
+        stripe: "#dc2626",
       };
     default:
       return {
         label: status || "Pending",
-        bg: "rgba(255, 255, 255, 0.05)",
-        color: "var(--color-surface-400)",
-        border: "rgba(255, 255, 255, 0.1)",
-        dot: "var(--color-surface-500)",
-        stripe: "rgba(255, 255, 255, 0.1)",
+        bg: "#f4f2ec",
+        color: "#57534e",
+        border: "#e2dfd6",
+        dot: "#78716c",
+        stripe: "#d6d3cd",
       };
   }
 }
@@ -152,12 +152,12 @@ export default function SummaryCard({
   return (
     <article
       className={`animate-fade-in-up rounded-2xl overflow-hidden glass-card group ${
-        selectable && selected ? "ring-2 ring-blue-500/70 border-blue-500/50" : ""
+        selectable && selected ? "ring-2 ring-blue-600/50 border-blue-400" : ""
       }`}
-      style={{ animationDelay: `${(index % 10) * 0.04}s` }}
+      style={{ animationDelay: `${(index % 10) * 0.035}s` }}
     >
-      {/* Top status stripe */}
-      <div className="h-[3px] w-full" style={{ background: badge.stripe }} />
+      {/* Top status hairline */}
+      <div className="h-[2.5px] w-full" style={{ background: badge.stripe }} />
 
       {/* Video header row */}
       <div className="flex flex-col sm:flex-row gap-5 p-5 sm:p-6">
@@ -170,8 +170,8 @@ export default function SummaryCard({
               aria-pressed={selected}
               className={`w-5 h-5 rounded-md flex items-center justify-center border cursor-pointer transition-colors ${
                 selected
-                  ? "bg-blue-600 border-blue-500 text-white"
-                  : "bg-black/40 border-white/25 hover:border-blue-400"
+                  ? "bg-stone-900 border-stone-900 text-white"
+                  : "bg-white border-stone-300 hover:border-stone-500"
               }`}
             >
               {selected && <Check className="w-3.5 h-3.5" />}
@@ -186,33 +186,34 @@ export default function SummaryCard({
             className="shrink-0 block"
             aria-label={`Watch ${title} on YouTube`}
           >
-            <div className="relative rounded-xl overflow-hidden shadow-[0_6px_16px_rgba(0,0,0,0.4)] bg-zinc-900 w-full sm:w-[176px] aspect-video border border-white/5">
+            <div className="relative rounded-xl overflow-hidden shadow-xs bg-stone-100 w-full sm:w-[176px] aspect-video border border-stone-200/80">
               {!imgError && thumbnailUrl ? (
                 <img
                   src={thumbnailUrl}
                   alt={title}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  referrerPolicy="no-referrer"
+                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-103"
                   loading="lazy"
                   onError={() => setImgError(true)}
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center bg-zinc-900 text-zinc-500">
+                <div className="w-full h-full flex items-center justify-center bg-stone-100 text-stone-400">
                   <svg
-                    className="w-8 h-8 text-red-500/80"
+                    className="w-8 h-8 text-red-600"
                     fill="currentColor"
                     viewBox="0 0 24 24"
                   >
                     <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z" />
                     <path
-                      fill="#18181b"
+                      fill="#ffffff"
                       d="M9.545 15.568V8.432L15.818 12l-6.273 3.568z"
                     />
                   </svg>
                 </div>
               )}
 
-              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black/45 backdrop-blur-[2px]">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-red-600 shadow-[0_0_20px_rgba(220,38,38,0.6)] scale-90 group-hover:scale-100 transition-transform duration-300">
+              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/25">
+                <div className="w-9 h-9 rounded-full flex items-center justify-center bg-red-600 shadow-md scale-95 group-hover:scale-100 transition-transform duration-200">
                   <svg
                     className="w-4 h-4 text-white ml-0.5"
                     fill="currentColor"
@@ -232,13 +233,13 @@ export default function SummaryCard({
               href={videoUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="font-bold text-base sm:text-[17px] leading-snug line-clamp-2 text-zinc-100 transition-colors hover:text-blue-400"
+              className="font-bold text-base sm:text-[17px] leading-snug line-clamp-2 text-stone-900 transition-colors hover:text-blue-700"
             >
               {title}
             </a>
 
             <span
-              className="shrink-0 text-[11px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1.5 uppercase tracking-wider"
+              className="shrink-0 text-[11px] font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1.5"
               style={{
                 background: badge.bg,
                 color: badge.color,
@@ -253,9 +254,9 @@ export default function SummaryCard({
             </span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-zinc-400">
+          <div className="flex flex-wrap items-center gap-2.5 text-xs font-medium text-stone-500">
             {channelName && (
-              <span className="inline-flex items-center gap-1.5 bg-white/[0.05] border border-white/[0.07] px-2.5 py-1 rounded-lg">
+              <span className="inline-flex items-center gap-1.5 bg-[#f4f2ec] border border-[#e5e2d9] px-2.5 py-1 rounded-lg">
                 {channelAvatar ? (
                   <img
                     src={channelAvatar}
@@ -265,9 +266,9 @@ export default function SummaryCard({
                     loading="lazy"
                   />
                 ) : (
-                  <User className="w-3.5 h-3.5 text-zinc-400" />
+                  <User className="w-3.5 h-3.5 text-stone-500" />
                 )}
-                <span className="text-zinc-200 font-semibold">
+                <span className="text-stone-800 font-semibold">
                   {channelName}
                 </span>
               </span>
@@ -276,11 +277,11 @@ export default function SummaryCard({
               className="inline-flex items-center gap-1.5"
               title={exactDate}
             >
-              <Clock className="w-3.5 h-3.5 text-zinc-500" />
+              <Clock className="w-3.5 h-3.5 text-stone-400" />
               {formatRelativeTime(video.published_at)}
             </span>
             {isMetadataOnly && (
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/10 text-zinc-400">
+              <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-stone-100 border border-stone-200 text-stone-600">
                 Metadata-based
               </span>
             )}
@@ -288,7 +289,7 @@ export default function SummaryCard({
               href={videoUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 transition-colors text-zinc-400 hover:text-blue-400 ml-auto sm:ml-0"
+              className="inline-flex items-center gap-1.5 transition-colors text-stone-500 hover:text-stone-900 ml-auto sm:ml-0"
             >
               <ExternalLink className="w-3.5 h-3.5" />
               Watch on YouTube
@@ -300,25 +301,25 @@ export default function SummaryCard({
       {/* ── AI Summary (completed) ── */}
       {video.status === "completed" && video.ai_summary && (
         <div className="px-5 sm:px-6 pb-5 sm:pb-6">
-          <div className="rounded-xl p-4 sm:p-5 bg-black/25 border border-white/[0.06] relative overflow-hidden">
+          <div className="rounded-xl p-4 sm:p-5 bg-[#fafaf8] border border-[#ece9e0] relative overflow-hidden">
             <div className="flex items-center justify-between mb-3.5">
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-lg flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600 shadow-[0_0_12px_rgba(59,130,246,0.35)]">
-                  <Zap className="w-3.5 h-3.5 text-white" />
+                <div className="w-6 h-6 rounded-lg flex items-center justify-center bg-blue-50 border border-blue-200 text-blue-600">
+                  <Zap className="w-3.5 h-3.5" />
                 </div>
-                <span className="text-xs font-bold uppercase tracking-widest text-blue-300">
-                  AI Summary
+                <span className="text-xs font-bold uppercase tracking-wider text-stone-700">
+                  Summary
                 </span>
               </div>
 
               <button
                 type="button"
                 onClick={handleCopySummary}
-                className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer bg-white/[0.05] hover:bg-white/10 text-zinc-300 hover:text-white border border-white/[0.08]"
+                className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer bg-white hover:bg-stone-100 text-stone-600 hover:text-stone-900 border border-[#e5e2d9]"
                 title="Copy summary to clipboard"
               >
                 {copied ? (
-                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  <Check className="w-3.5 h-3.5 text-emerald-600" />
                 ) : (
                   <Copy className="w-3.5 h-3.5" />
                 )}
@@ -338,7 +339,7 @@ export default function SummaryCard({
               </div>
 
               {!expanded && isLongSummary && (
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#101014] via-[#101014]/75 to-transparent" />
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#fafaf8] via-[#fafaf8]/80 to-transparent" />
               )}
             </div>
 
@@ -346,7 +347,7 @@ export default function SummaryCard({
               <button
                 type="button"
                 onClick={() => setExpanded((v) => !v)}
-                className="mt-3.5 inline-flex items-center gap-1.5 text-xs font-bold cursor-pointer transition-colors text-blue-400 hover:text-blue-300 uppercase tracking-wider"
+                className="mt-3.5 inline-flex items-center gap-1.5 text-xs font-semibold cursor-pointer transition-colors text-blue-700 hover:text-blue-800"
               >
                 {expanded ? (
                   <>
@@ -368,11 +369,11 @@ export default function SummaryCard({
       {/* ── Processing state ── */}
       {video.status === "processing" && (
         <div className="px-5 sm:px-6 pb-5">
-          <div className="rounded-xl px-4 py-3 flex items-center justify-between gap-3 bg-amber-500/10 border border-amber-500/20">
+          <div className="rounded-xl px-4 py-3 flex items-center justify-between gap-3 bg-amber-50 border border-amber-200">
             <div className="flex items-center gap-3">
-              <Loader2 className="w-4 h-4 animate-spin shrink-0 text-amber-400" />
-              <span className="text-sm font-semibold text-amber-200">
-                AI is generating the summary…
+              <Loader2 className="w-4 h-4 animate-spin shrink-0 text-amber-600" />
+              <span className="text-sm font-medium text-amber-900">
+                Generating video summary…
               </span>
             </div>
             {onRetry && (
@@ -380,7 +381,7 @@ export default function SummaryCard({
                 type="button"
                 onClick={handleRetry}
                 disabled={retrying}
-                className="text-xs font-semibold text-amber-300/80 hover:text-amber-200 underline underline-offset-2 cursor-pointer"
+                className="text-xs font-semibold text-amber-800 hover:text-amber-950 underline underline-offset-2 cursor-pointer"
                 title="Re-queue if stuck"
               >
                 Re-queue
@@ -393,9 +394,9 @@ export default function SummaryCard({
       {/* ── Pending state ── */}
       {video.status === "pending" && (
         <div className="px-5 sm:px-6 pb-5">
-          <div className="rounded-xl px-4 py-3 flex items-center gap-3 bg-blue-500/10 border border-blue-500/20">
-            <Timer className="w-4 h-4 shrink-0 text-blue-400" />
-            <span className="text-sm font-semibold text-blue-200">
+          <div className="rounded-xl px-4 py-3 flex items-center gap-3 bg-sky-50 border border-sky-200">
+            <Timer className="w-4 h-4 shrink-0 text-sky-600" />
+            <span className="text-sm font-medium text-sky-900">
               Queued for processing — waiting for worker run
             </span>
           </div>
@@ -405,12 +406,12 @@ export default function SummaryCard({
       {/* ── Failed state ── */}
       {video.status === "failed" && (
         <div className="px-5 sm:px-6 pb-5">
-          <div className="rounded-xl px-4 py-3 bg-red-500/10 border border-red-500/20">
+          <div className="rounded-xl px-4 py-3 bg-red-50 border border-red-200">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                <AlertTriangle className="w-4 h-4 shrink-0 text-red-400" />
+                <AlertTriangle className="w-4 h-4 shrink-0 text-red-600" />
                 <span
-                  className={`text-sm font-semibold text-red-200 ${
+                  className={`text-sm font-medium text-red-800 ${
                     showErrorDetails ? "whitespace-pre-wrap break-words" : "truncate"
                   }`}
                 >
@@ -423,7 +424,7 @@ export default function SummaryCard({
                   <button
                     type="button"
                     onClick={() => setShowErrorDetails((v) => !v)}
-                    className="text-xs font-semibold text-red-300/80 hover:text-red-200 cursor-pointer px-2 py-1 rounded hover:bg-white/5"
+                    className="text-xs font-semibold text-red-700 hover:text-red-900 cursor-pointer px-2 py-1 rounded hover:bg-red-100/70"
                   >
                     {showErrorDetails ? "Hide" : "Details"}
                   </button>
@@ -433,7 +434,7 @@ export default function SummaryCard({
                     type="button"
                     onClick={handleRetry}
                     disabled={retrying}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all bg-white/[0.06] hover:bg-white/12 text-red-200 border border-red-500/25 hover:border-red-400/50 disabled:opacity-60"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors bg-white hover:bg-red-100/60 text-red-700 border border-red-200 disabled:opacity-60"
                   >
                     <RotateCcw
                       className={`w-3.5 h-3.5 ${retrying ? "animate-spin" : ""}`}

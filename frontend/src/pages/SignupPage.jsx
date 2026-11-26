@@ -16,7 +16,7 @@ export default function SignupPage() {
   if (loading) {
     return (
       <div className="min-h-screen page-bg flex items-center justify-center">
-        <div className="w-8 h-8 rounded-full border-2 border-blue-500/30 border-t-blue-400 animate-spin" />
+        <div className="w-8 h-8 rounded-full border-2 border-stone-300 border-t-stone-800 animate-spin" />
       </div>
     );
   }
